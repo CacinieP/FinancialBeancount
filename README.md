@@ -18,7 +18,8 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourusername/FinancialBeancount.git
+# Replace <YOUR_GITHUB_USERNAME> with your GitHub username
+git clone https://github.com/<YOUR_GITHUB_USERNAME>/FinancialBeancount.git
 cd FinancialBeancount
 
 # 2. Install dependencies (optional, for XLSX/PDF support)
