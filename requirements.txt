@@ -1,0 +1,29 @@
+# Beancount 多平台账单去重工具依赖
+
+# 核心依赖（无需额外安装，Python 标准库）
+# - csv
+# - io
+# - decimal
+# - datetime
+# - dataclasses
+# - pathlib
+# - enum
+# - uuid
+# - typing
+
+# 可选依赖 - 用于格式转换
+# XLSX/XLS 转 CSV
+openpyxl>=3.0.0
+pandas>=1.3.0
+
+# PDF 转 CSV（推荐安装 pdfplumber）
+pdfplumber>=0.7.0
+# 或者使用 tabula-py（需要 Java 环境）
+# tabula-py>=2.0.0
+
+# PDF 创建（仅用于测试）
+# reportlab>=3.6.0
+
+# 开发和测试依赖
+# pytest>=7.0.0
+# pytest-cov>=3.0.0
