@@ -2,10 +2,13 @@
 XLSX 转换器 - 将 Excel 文件转换为 CSV
 """
 
-from typing import List, Dict, Any, Optional
+import logging
 from pathlib import Path
+from typing import Any
 
 from .base import BaseConverter, ConversionResult
+
+logger = logging.getLogger(__name__)
 
 
 class XLSXConverter(BaseConverter):
@@ -16,16 +19,16 @@ class XLSXConverter(BaseConverter):
     """
 
     @property
-    def supported_extensions(self) -> List[str]:
-        return ['.xlsx', '.xls']
+    def supported_extensions(self) -> list[str]:
+        return [".xlsx", ".xls"]
 
     def convert(
         self,
         input_path: str,
-        output_path: Optional[str] = None,
-        sheet_name: Optional[str] = None,
+        output_path: str | None = None,
+        sheet_name: str | None = None,
         sheet_index: int = 0,
-        **kwargs
+        **kwargs,
     ) -> ConversionResult:
         """
         转换 Excel 文件为 CSV
@@ -59,13 +62,7 @@ class XLSXConverter(BaseConverter):
         result.output_path = output_path
 
         # 提取数据
-        rows = self._extract_excel_data(
-            input_path,
-            sheet_name,
-            sheet_index,
-            result,
-            **kwargs
-        )
+        rows = self._extract_excel_data(input_path, sheet_name, sheet_index, result, **kwargs)
 
         if not rows:
             result.errors.append("未能从 Excel 文件中提取到数据")
@@ -73,11 +70,11 @@ class XLSXConverter(BaseConverter):
 
         # 写入 CSV
         try:
-            encoding = kwargs.get('encoding', 'utf-8-sig')
+            encoding = kwargs.get("encoding", "utf-8-sig")
             result.rows_converted = self._write_csv(rows, output_path, encoding)
             result.success = True
         except Exception as e:
-            result.errors.append(f"写入 CSV 文件失败: {str(e)}")
+            result.errors.append(f"写入 CSV 文件失败: {e!s}")
             return result
 
         return result
@@ -85,11 +82,11 @@ class XLSXConverter(BaseConverter):
     def _extract_excel_data(
         self,
         excel_path: str,
-        sheet_name: Optional[str],
+        sheet_name: str | None,
         sheet_index: int,
         result: ConversionResult,
-        **kwargs
-    ) -> List[Dict[str, Any]]:
+        **kwargs,
+    ) -> list[dict[str, Any]]:
         """
         从 Excel 文件中提取数据
 
@@ -99,54 +96,43 @@ class XLSXConverter(BaseConverter):
         3. xlrd - 支持 .xls（老版本）
         """
         # 方法 1: 尝试 pandas
-        rows = self._try_pandas(
-            excel_path,
-            sheet_name,
-            sheet_index,
-            result,
-            **kwargs
-        )
+        logger.debug("尝试 pandas 读取: %s", excel_path)
+        rows = self._try_pandas(excel_path, sheet_name, sheet_index, result, **kwargs)
         if rows:
-            result.metadata['method'] = 'pandas'
+            result.metadata["method"] = "pandas"
+            logger.info("Excel读取成功: pandas, %d 行, %s", len(rows), excel_path)
             return rows
 
         # 方法 2: 尝试 openpyxl (仅 .xlsx)
-        if excel_path.endswith('.xlsx'):
-            rows = self._try_openpyxl(
-                excel_path,
-                sheet_name,
-                sheet_index,
-                result,
-                **kwargs
-            )
+        if excel_path.endswith(".xlsx"):
+            logger.debug("尝试 openpyxl 读取: %s", excel_path)
+            rows = self._try_openpyxl(excel_path, sheet_name, sheet_index, result, **kwargs)
             if rows:
-                result.metadata['method'] = 'openpyxl'
+                result.metadata["method"] = "openpyxl"
+                logger.info("Excel读取成功: openpyxl, %d 行, %s", len(rows), excel_path)
                 return rows
 
         # 方法 3: 尝试 xlrd (仅 .xls)
-        if excel_path.endswith('.xls'):
-            rows = self._try_xlrd(
-                excel_path,
-                sheet_name,
-                sheet_index,
-                result,
-                **kwargs
-            )
+        if excel_path.endswith(".xls"):
+            logger.debug("尝试 xlrd 读取: %s", excel_path)
+            rows = self._try_xlrd(excel_path, sheet_name, sheet_index, result, **kwargs)
             if rows:
-                result.metadata['method'] = 'xlrd'
+                result.metadata["method"] = "xlrd"
+                logger.info("Excel读取成功: xlrd, %d 行, %s", len(rows), excel_path)
                 return rows
 
+        logger.error("所有 Excel 读取方法均失败: %s", excel_path)
         result.errors.append("所有 Excel 读取方法均失败")
         return []
 
     def _try_pandas(
         self,
         excel_path: str,
-        sheet_name: Optional[str],
+        sheet_name: str | None,
         sheet_index: int,
         result: ConversionResult,
-        **kwargs
-    ) -> Optional[List[Dict[str, Any]]]:
+        **kwargs,
+    ) -> list[dict[str, Any]] | None:
         """尝试使用 pandas 读取 Excel"""
         try:
             import pandas as pd
@@ -155,21 +141,13 @@ class XLSXConverter(BaseConverter):
             return None
 
         try:
-            header_row = kwargs.get('header_row', 0)
+            header_row = kwargs.get("header_row", 0)
 
             # 读取 Excel
             if sheet_name:
-                df = pd.read_excel(
-                    excel_path,
-                    sheet_name=sheet_name,
-                    header=header_row
-                )
+                df = pd.read_excel(excel_path, sheet_name=sheet_name, header=header_row)
             else:
-                df = pd.read_excel(
-                    excel_path,
-                    sheet_name=sheet_index,
-                    header=header_row
-                )
+                df = pd.read_excel(excel_path, sheet_name=sheet_index, header=header_row)
 
             # 转换为字典列表
             rows = []
@@ -178,29 +156,26 @@ class XLSXConverter(BaseConverter):
             for _, row in df.iterrows():
                 row_dict = {}
                 for header in headers:
-                    value = row.get(header, '')
+                    value = row.get(header, "")
                     # 处理 NaN 值
-                    if pd.isna(value):
-                        value = ''
-                    else:
-                        value = str(value).strip()
+                    value = "" if pd.isna(value) else str(value).strip()
                     row_dict[header] = value
                 rows.append(row_dict)
 
             return rows
 
         except Exception as e:
-            result.warnings.append(f"pandas 读取失败: {str(e)}")
+            result.warnings.append(f"pandas 读取失败: {e!s}")
             return None
 
     def _try_openpyxl(
         self,
         excel_path: str,
-        sheet_name: Optional[str],
+        sheet_name: str | None,
         sheet_index: int,
         result: ConversionResult,
-        **kwargs
-    ) -> Optional[List[Dict[str, Any]]]:
+        **kwargs,
+    ) -> list[dict[str, Any]] | None:
         """尝试使用 openpyxl 读取 Excel"""
         try:
             import openpyxl
@@ -209,15 +184,12 @@ class XLSXConverter(BaseConverter):
             return None
 
         try:
-            header_row = kwargs.get('header_row', 0)
+            header_row = kwargs.get("header_row", 0)
 
             workbook = openpyxl.load_workbook(excel_path, read_only=True)
 
             # 选择工作表
-            if sheet_name:
-                sheet = workbook[sheet_name]
-            else:
-                sheet = workbook.worksheets[sheet_index]
+            sheet = workbook[sheet_name] if sheet_name else workbook.worksheets[sheet_index]
 
             rows = []
             headers = []
@@ -225,10 +197,9 @@ class XLSXConverter(BaseConverter):
             for i, row in enumerate(sheet.iter_rows(values_only=True)):
                 if i == header_row:
                     # 表头行
-                    headers = self._normalize_headers([
-                        str(cell) if cell is not None else ""
-                        for cell in row
-                    ])
+                    headers = self._normalize_headers(
+                        [str(cell) if cell is not None else "" for cell in row]
+                    )
                 elif i > header_row:
                     # 数据行
                     row_dict = {}
@@ -242,17 +213,17 @@ class XLSXConverter(BaseConverter):
             return rows
 
         except Exception as e:
-            result.warnings.append(f"openpyxl 读取失败: {str(e)}")
+            result.warnings.append(f"openpyxl 读取失败: {e!s}")
             return None
 
     def _try_xlrd(
         self,
         excel_path: str,
-        sheet_name: Optional[str],
+        sheet_name: str | None,
         sheet_index: int,
         result: ConversionResult,
-        **kwargs
-    ) -> Optional[List[Dict[str, Any]]]:
+        **kwargs,
+    ) -> list[dict[str, Any]] | None:
         """尝试使用 xlrd 读取旧版 Excel"""
         try:
             import xlrd
@@ -261,7 +232,7 @@ class XLSXConverter(BaseConverter):
             return None
 
         try:
-            header_row = kwargs.get('header_row', 0)
+            header_row = kwargs.get("header_row", 0)
 
             workbook = xlrd.open_workbook(excel_path)
 
@@ -292,10 +263,10 @@ class XLSXConverter(BaseConverter):
             return rows
 
         except Exception as e:
-            result.warnings.append(f"xlrd 读取失败: {str(e)}")
+            result.warnings.append(f"xlrd 读取失败: {e!s}")
             return None
 
-    def list_sheets(self, excel_path: str) -> List[str]:
+    def list_sheets(self, excel_path: str) -> list[str]:
         """
         列出 Excel 文件中的所有工作表名称
 
@@ -311,15 +282,17 @@ class XLSXConverter(BaseConverter):
         # 尝试使用 pandas
         try:
             import pandas as pd
+
             xl_file = pd.ExcelFile(excel_path)
             return xl_file.sheet_names
         except ImportError:
             pass
 
         # 尝试使用 openpyxl (仅 .xlsx)
-        if excel_path.endswith('.xlsx'):
+        if excel_path.endswith(".xlsx"):
             try:
                 import openpyxl
+
                 workbook = openpyxl.load_workbook(excel_path, read_only=True)
                 sheets = workbook.sheetnames
                 workbook.close()
@@ -328,9 +301,10 @@ class XLSXConverter(BaseConverter):
                 pass
 
         # 尝试使用 xlrd (仅 .xls)
-        if excel_path.endswith('.xls'):
+        if excel_path.endswith(".xls"):
             try:
                 import xlrd
+
                 workbook = xlrd.open_workbook(excel_path)
                 sheets = [sheet.name for sheet in workbook.sheets()]
                 return sheets

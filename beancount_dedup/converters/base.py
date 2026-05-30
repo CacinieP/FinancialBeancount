@@ -6,24 +6,27 @@ import csv
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 
 @dataclass
 class ConversionResult:
     """转换结果"""
+
     success: bool = False
     output_path: str = ""
     rows_converted: int = 0
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __str__(self):
         if self.success:
-            return (f"ConversionResult(success=True, "
-                    f"output={self.output_path}, "
-                    f"rows={self.rows_converted})")
+            return (
+                f"ConversionResult(success=True, "
+                f"output={self.output_path}, "
+                f"rows={self.rows_converted})"
+            )
         return f"ConversionResult(success=False, errors={self.errors})"
 
 
@@ -38,9 +41,8 @@ class BaseConverter(ABC):
 
     @property
     @abstractmethod
-    def supported_extensions(self) -> List[str]:
+    def supported_extensions(self) -> list[str]:
         """支持的文件扩展名（小写，带点）"""
-        pass
 
     def can_convert(self, filepath: str) -> bool:
         """
@@ -57,10 +59,7 @@ class BaseConverter(ABC):
 
     @abstractmethod
     def convert(
-        self,
-        input_path: str,
-        output_path: Optional[str] = None,
-        **kwargs
+        self, input_path: str, output_path: str | None = None, **kwargs
     ) -> ConversionResult:
         """
         执行转换操作
@@ -73,7 +72,6 @@ class BaseConverter(ABC):
         Returns:
             ConversionResult 转换结果
         """
-        pass
 
     def _generate_output_path(self, input_path: str) -> str:
         """
@@ -82,14 +80,11 @@ class BaseConverter(ABC):
         默认在输入文件同目录下生成同名.csv文件
         """
         input_path_obj = Path(input_path)
-        output_path = input_path_obj.with_suffix('.csv')
+        output_path = input_path_obj.with_suffix(".csv")
         return str(output_path)
 
     def _write_csv(
-        self,
-        rows: List[Dict[str, Any]],
-        output_path: str,
-        encoding: str = 'utf-8-sig'
+        self, rows: list[dict[str, Any]], output_path: str, encoding: str = "utf-8-sig"
     ) -> int:
         """
         将数据写入CSV文件
@@ -105,14 +100,14 @@ class BaseConverter(ABC):
         if not rows:
             return 0
 
-        with open(output_path, 'w', encoding=encoding, newline='') as f:
+        with open(output_path, "w", encoding=encoding, newline="") as f:
             writer = csv.DictWriter(f, fieldnames=rows[0].keys())
             writer.writeheader()
             writer.writerows(rows)
 
         return len(rows)
 
-    def _normalize_headers(self, headers: List[str]) -> List[str]:
+    def _normalize_headers(self, headers: list[str]) -> list[str]:
         """
         归一化表头
 

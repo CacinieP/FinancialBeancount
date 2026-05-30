@@ -1,0 +1,53 @@
+# Beancount Dedup Tool — example configuration
+# Copy to one of these locations to activate:
+#   ./beancount-dedup.yaml
+#   ~/.beancount-dedup/config.yaml
+# Or pass via CLI: beancount-dedup --config path/to/config.yaml
+
+# ── Deduplication thresholds ──────────────────────────────────────
+dedup:
+  l1_time_window_seconds: 120      # 2 min — exact match time window
+  l2_time_window_seconds: 120      # 2 min — loose match time window
+  l3_time_window_seconds: 86400    # 1 day — fuzzy match time window
+  l3_amount_tolerance_cents: 100   # 1 yuan — amount tolerance for fuzzy match
+
+# ── Account classification ────────────────────────────────────────
+accounts:
+  # Override platform wallet account names
+  platform_wallets:
+    alipay: "Assets:Current:Digital:Alipay"
+    wechat: "Assets:Current:Digital:WeChat"
+    bank:   "Assets:Current:Bank:Checking"
+
+  # Add custom merchant → account mappings (merged with built-in ones)
+  merchant_overrides:
+    # "星巴克": "Expenses:Food:Coffee"
+    # "瑞幸": "Expenses:Food:Coffee"
+    # "盒马鲜生": "Expenses:Food:Grocery"
+
+  # Add bank name → code mappings
+  bank_codes:
+    # "微众": "WEBANK"
+
+# ── Platform settings ─────────────────────────────────────────────
+platforms:
+  # Priority order: higher priority platforms are kept when duplicates found
+  priority:
+    - alipay   # most information-rich → keep first
+    - wechat
+    - bank
+
+  # Extend per-platform transfer keywords (added to built-in lists)
+  transfer_keywords:
+    # alipay:
+    #   - "花呗还款"
+    # bank:
+    #   - "银联转账"
+
+# ── Paths ──────────────────────────────────────────────────────────
+# input_dir: input
+# output_dir: output
+
+# ── Export settings ────────────────────────────────────────────────
+# include_metadata: true
+# operating_currency: "CNY"

@@ -3,7 +3,6 @@
 """
 
 from pathlib import Path
-from typing import List, Dict, Any, Optional
 
 from .base import BaseConverter, ConversionResult
 from .pdf_converter import PDFConverter
@@ -19,16 +18,13 @@ class AutoConverter:
 
     def __init__(self):
         """初始化自动转换器，注册所有支持的转换器"""
-        self.converters: List[BaseConverter] = [
+        self.converters: list[BaseConverter] = [
             XLSXConverter(),
             PDFConverter(),
         ]
 
     def convert(
-        self,
-        input_path: str,
-        output_path: Optional[str] = None,
-        **kwargs
+        self, input_path: str, output_path: str | None = None, **kwargs
     ) -> ConversionResult:
         """
         自动检测并转换文件为 CSV
@@ -55,12 +51,10 @@ class AutoConverter:
         # 未找到支持的转换器
         result = ConversionResult()
         result.errors.append(f"不支持的文件格式: {Path(input_path).suffix}")
-        result.errors.append(
-            f"支持的格式: {self.get_supported_extensions()}"
-        )
+        result.errors.append(f"支持的格式: {self.get_supported_extensions()}")
         return result
 
-    def get_supported_extensions(self) -> List[str]:
+    def get_supported_extensions(self) -> list[str]:
         """
         获取所有支持的文件扩展名
 
@@ -91,17 +85,10 @@ class AutoConverter:
         Returns:
             是否支持转换
         """
-        for converter in self.converters:
-            if converter.can_convert(filepath):
-                return True
-        return False
+        return any(converter.can_convert(filepath) for converter in self.converters)
 
 
-def convert_to_csv(
-    input_path: str,
-    output_path: Optional[str] = None,
-    **kwargs
-) -> ConversionResult:
+def convert_to_csv(input_path: str, output_path: str | None = None, **kwargs) -> ConversionResult:
     """
     便捷函数：将文件转换为 CSV
 

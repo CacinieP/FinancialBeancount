@@ -1,0 +1,143 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "financial-beancount"
+version = "0.2.0"
+description = "Local Beancount converter and deduplicator for Alipay, WeChat Pay, bank statements (CSV, XLSX, PDF)"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "CacinieP" },
+]
+keywords = [
+    "beancount",
+    "accounting",
+    "finance",
+    "alipay",
+    "wechat",
+    "deduplication",
+    "personal-finance",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Utilities",
+]
+
+[project.optional-dependencies]
+xlsx = [
+    "openpyxl>=3.0.0",
+    "pandas>=1.3.0",
+]
+pdf = [
+    "pdfplumber>=0.7.0",
+]
+validate = [
+    "beancount>=3.0.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "pre-commit>=3.6",
+    "reportlab>=3.6.0",
+]
+all = [
+    "financial-beancount[xlsx,pdf,validate]",
+]
+
+[project.scripts]
+beancount-dedup = "beancount_dedup.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["beancount_dedup"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests requiring optional dependencies",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["beancount_dedup", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "RUF",    # Ruff-specific rules
+    "PL",     # Pylint
+    "PGH",    # pygrep-hooks
+    "PIE",    # flake8-pie
+    "PERF",   # Perflint
+    "LOG",    # flake8-logging
+]
+ignore = [
+    "PLR0913",  # too many arguments
+    "PLR2004",  # magic value comparison
+    "PLR0912",  # too many branches
+    "PLR0915",  # too many statements
+    "B905",     # zip without strict (3.10 compat)
+    "RUF001",   # ambiguous Chinese characters in strings — bilingual project
+    "RUF002",   # ambiguous Chinese characters in docstrings — bilingual project
+    "RUF003",   # ambiguous Chinese characters in comments — bilingual project
+    "RUF012",   # mutable class defaults — dataclass patterns in existing code
+    "PLC0415",  # import outside top-level — lazy imports for optional deps
+    "PERF203",  # try-except in loop — acceptable for parsing loops
+    "PERF401",  # manual list comprehension — readability preference
+    "PERF402",  # manual list copy — readability preference
+    "TC001",    # typing-only first-party import — keep runtime imports simple
+    "W293",     # blank line whitespace — auto-fixed by formatter
+    "E501",     # line too long — formatter handles most, long strings acceptable
+    "SIM102",   # collapsible-if — readability preference
+    "SIM108",   # ternary instead of if-else — readability preference
+    "SIM103",   # needless bool — readability preference
+    "SIM110",   # reimplemented builtin — readability preference
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR0915", "PLR0912"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pdfplumber.*",
+    "tabula.*",
+    "PyPDF2.*",
+    "pypdf.*",
+    "openpyxl.*",
+    "xlrd.*",
+    "pandas.*",
+    "dateutil.*",
+    "reportlab.*",
+    "beancount.*",
+]
+ignore_missing_imports = true

@@ -5,31 +5,34 @@ Beancount 多平台账单去重工具
 支持从 PDF、XLSX 等格式自动转换为 CSV。
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-from .models import Transaction, Platform
-from .fingerprinter import TransactionFingerprinter
-from .deduplicator import DeduplicationEngine, DedupResult
-from .converters import AutoConverter, convert_to_csv
 from .account_classifier import (
-    BeancountAccountClassifier,
     AccountType,
     AssetCategory,
+    BeancountAccountClassifier,
     ExpenseCategory,
     IncomeCategory,
 )
+from .config import AppConfig, load_config
+from .converters import AutoConverter, convert_to_csv
+from .deduplicator import DeduplicationEngine, DedupResult
+from .fingerprinter import TransactionFingerprinter
+from .models import Platform, Transaction
 
 __all__ = [
-    "Transaction",
-    "Platform",
-    "TransactionFingerprinter",
-    "DeduplicationEngine",
-    "DedupResult",
-    "AutoConverter",
-    "convert_to_csv",
-    "BeancountAccountClassifier",
     "AccountType",
+    "AppConfig",
     "AssetCategory",
+    "AutoConverter",
+    "BeancountAccountClassifier",
+    "DedupResult",
+    "DeduplicationEngine",
     "ExpenseCategory",
     "IncomeCategory",
+    "Platform",
+    "Transaction",
+    "TransactionFingerprinter",
+    "convert_to_csv",
+    "load_config",
 ]

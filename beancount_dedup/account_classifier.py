@@ -6,52 +6,55 @@ Beancount 账户分类系统
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Set
 from enum import Enum
 
 
 class AccountType(Enum):
     """五大核心账户类型"""
-    ASSETS = "Assets"           # 资产
-    LIABILITIES = "Liabilities"   # 资产
-    EQUITY = "Equity"           # 权益
-    INCOME = "Income"           # 收入
-    EXPENSES = "Expenses"       # 支出
+
+    ASSETS = "Assets"  # 资产
+    LIABILITIES = "Liabilities"  # 资产
+    EQUITY = "Equity"  # 权益
+    INCOME = "Income"  # 收入
+    EXPENSES = "Expenses"  # 支出
 
 
 class AssetCategory(Enum):
     """资产二级分类"""
-    CURRENT = "Current"         # 流动资产
-    FIXED = "Fixed"             # 固定资产
-    INVESTMENTS = "Investments" # 投资资产
+
+    CURRENT = "Current"  # 流动资产
+    FIXED = "Fixed"  # 固定资产
+    INVESTMENTS = "Investments"  # 投资资产
     RECEIVABLES = "Receivables"  # 应收账款
-    PREPAID = "Prepaid"          # 预付款
+    PREPAID = "Prepaid"  # 预付款
 
 
 class ExpenseCategory(Enum):
     """支出二级分类"""
-    FOOD = "Food"                      # 餐饮
-    HOUSING = "Housing"              # 住房
-    TRANSPORT = "Transport"          # 交通
-    SHOPPING = "Shopping"            # 购物
+
+    FOOD = "Food"  # 餐饮
+    HOUSING = "Housing"  # 住房
+    TRANSPORT = "Transport"  # 交通
+    SHOPPING = "Shopping"  # 购物
     ENTERTAINMENT = "Entertainment"  # 娱乐
-    MEDICAL = "Medical"              # 医疗
-    EDUCATION = "Education"          # 教育
+    MEDICAL = "Medical"  # 医疗
+    EDUCATION = "Education"  # 教育
     COMMUNICATION = "Communication"  # 通信
-    FINANCIAL = "Financial"          # 金融
-    PERSONAL = "Personal"            # 个人
-    TRANSFER = "Transfer"            # 转账
-    UNKNOWN = "Unknown"              # 未知
+    FINANCIAL = "Financial"  # 金融
+    PERSONAL = "Personal"  # 个人
+    TRANSFER = "Transfer"  # 转账
+    UNKNOWN = "Unknown"  # 未知
 
 
 class IncomeCategory(Enum):
     """收入二级分类"""
-    SALARY = "Salary"              # 工资
-    BONUS = "Bonus"                # 奖金
-    INVESTMENT = "Investment"      # 投资
-    REFUND = "Refund"              # 退款
-    GIFT = "Gift"                  # 礼物
-    OTHER = "Other"                # 其他
+
+    SALARY = "Salary"  # 工资
+    BONUS = "Bonus"  # 奖金
+    INVESTMENT = "Investment"  # 投资
+    REFUND = "Refund"  # 退款
+    GIFT = "Gift"  # 礼物
+    OTHER = "Other"  # 其他
 
 
 @dataclass
@@ -59,11 +62,12 @@ class AccountMapping:
     """
     Beancount 账户映射配置
     """
-    platform: str           # 平台名称
+
+    platform: str  # 平台名称
     account_type: AccountType  # 账户类型
-    category: str            # 二级分类
-    subcategory: str         # 三级分类（可选）
-    account_template: str   # 账户模板，可用 {counterpart} 等占位符
+    category: str  # 二级分类
+    subcategory: str  # 三级分类（可选）
+    account_template: str  # 账户模板，可用 {counterpart} 等占位符
 
     def get_account(self, counterparty: str = "", description: str = "") -> str:
         """生成完整的账户路径"""
@@ -262,13 +266,11 @@ class BeancountAccountClassifier:
         " Pizza Hut": "Expenses:Food:Restaurant",
         "汉堡王": "Expenses:Food:Restaurant",
         "华莱士": "Expenses:Food:Restaurant",
-
         # 咖啡
         "瑞幸": "Expenses:Food:Coffee",
         "luckin": "Expenses:Food:Coffee",
         "Costa": "Expenses:Food:Coffee",
         "漫咖啡": "Expenses:Food:Coffee",
-
         # 便利店
         "7-Eleven": "Expenses:Shopping:Daily",
         "FamilyMart": "Expenses:Shopping:Daily",
@@ -276,7 +278,6 @@ class BeancountAccountClassifier:
         "罗森": "Expenses:Shopping:Daily",
         "LAWSON": "Expenses:Shopping:Daily",
         "喜士多": "Expenses:Shopping:Daily",
-
         # 电商
         "京东": "Expenses:Shopping:Online",
         "JD": "Expenses:Shopping:Online",
@@ -284,20 +285,17 @@ class BeancountAccountClassifier:
         "天猫": "Expenses:Shopping:Online",
         "拼多多": "Expenses:Shopping:Online",
         "唯品会": "Expenses:Shopping:Online",
-
         # 数字服务
         "美团": "Expenses:Food:Delivery",  # 美团外卖
         "饿了么": "Expenses:Food:Delivery",
         "滴滴": "Expenses:Transport:Private",
         "快滴": "Expenses:Transport:Private",
         "高德": "Expenses:Transport:Private",
-
         # 数字娱乐
         "腾讯视频": "Expenses:Entertainment:Subscription",
         "爱奇艺": "Expenses:Entertainment:Subscription",
         "Netflix": "Expenses:Entertainment:Subscription",
         "Spotify": "Expenses:Entertainment:Subscription",
-
         # 教育
         "得到": "Expenses:Education:Books",
         "知乎": "Expenses:Education:Online",
@@ -306,10 +304,10 @@ class BeancountAccountClassifier:
 
     def __init__(self):
         """初始化分类器"""
-        pass
 
-    def classify_transaction(self, counterparty: str, description: str,
-                           tx_type: str = "", platform: str = "") -> Dict[str, str]:
+    def classify_transaction(
+        self, counterparty: str, description: str, tx_type: str = "", platform: str = ""
+    ) -> dict[str, str]:
         """
         对交易进行智能分类
 
@@ -332,7 +330,9 @@ class BeancountAccountClassifier:
         elif tx_type == "income" or self._is_likely_income(text):
             opposing_account = self._classify_income(counterparty, description, text)
         else:
-            opposing_account = "Expenses:Unknown" if self._is_likely_expense(text) else "Income:Unknown"
+            opposing_account = (
+                "Expenses:Unknown" if self._is_likely_expense(text) else "Income:Unknown"
+            )
 
         # 3. 生成标签
         tags = self._generate_tags(counterparty, description, text)
@@ -370,7 +370,7 @@ class BeancountAccountClassifier:
                 return account
 
         # 2. 检查按类别的关键词
-        for category, keywords in self.EXPENSE_CATEGORIES.items():
+        for keywords in self.EXPENSE_CATEGORIES.values():
             for keyword, account in keywords.items():
                 if keyword in text:
                     return account
@@ -398,20 +398,41 @@ class BeancountAccountClassifier:
     def _is_likely_expense(self, text: str) -> bool:
         """判断是否为支出"""
         expense_keywords = [
-            "购买", "消费", "支付", "支出", "买", "餐厅", "超市",
-            "地铁", "公交", "打车", "外卖", "美团", "饿了么"
+            "购买",
+            "消费",
+            "支付",
+            "支出",
+            "买",
+            "餐厅",
+            "超市",
+            "地铁",
+            "公交",
+            "打车",
+            "外卖",
+            "美团",
+            "饿了么",
         ]
         return any(kw in text for kw in expense_keywords)
 
     def _is_likely_income(self, text: str) -> bool:
         """判断是否为收入"""
         income_keywords = [
-            "工资", "薪资", "奖金", "分红", "利息", "退款", "转入",
-            "收入", "进账", "存入", "充值", "工资"
+            "工资",
+            "薪资",
+            "奖金",
+            "分红",
+            "利息",
+            "退款",
+            "转入",
+            "收入",
+            "进账",
+            "存入",
+            "充值",
+            "工资",
         ]
         return any(kw in text for kw in income_keywords)
 
-    def _generate_tags(self, counterparty: str, description: str, text: str) -> List[str]:
+    def _generate_tags(self, counterparty: str, description: str, text: str) -> list[str]:
         """生成交易标签"""
         tags = []
 
@@ -434,6 +455,10 @@ class BeancountAccountClassifier:
             tags.append("topup")
 
         return tags
+
+    def determine_asset_account(self, platform: str, counterparty: str = "") -> str:
+        """Public API for determining the asset account for a transaction."""
+        return self._determine_asset_account(platform, counterparty)
 
     def _get_category_from_account(self, account: str) -> str:
         """从账户路径提取分类"""
@@ -458,7 +483,6 @@ main.beancount              # 主文件
     ├── 2025-01.beancount
     └── ...
 """,
-
     # 按账户类型组织
     "by_account": """
 # 推荐的文件组织（按账户类型）
@@ -469,7 +493,6 @@ main.beancount
 ├── expenses.beancount     # 支出账户交易
 └── income.beancount       # 收入账户交易
 """,
-
     # 按平台组织
     "by_platform": """
 # 推荐的文件组织（按平台）

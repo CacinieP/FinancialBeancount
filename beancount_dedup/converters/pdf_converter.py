@@ -2,11 +2,13 @@
 PDF 转换器 - 将 PDF 表格转换为 CSV
 """
 
-import re
-from typing import List, Dict, Any, Optional
+import logging
 from pathlib import Path
+from typing import Any
 
 from .base import BaseConverter, ConversionResult
+
+logger = logging.getLogger(__name__)
 
 
 class PDFConverter(BaseConverter):
@@ -17,15 +19,11 @@ class PDFConverter(BaseConverter):
     """
 
     @property
-    def supported_extensions(self) -> List[str]:
-        return ['.pdf']
+    def supported_extensions(self) -> list[str]:
+        return [".pdf"]
 
     def convert(
-        self,
-        input_path: str,
-        output_path: Optional[str] = None,
-        page: Optional[int] = None,
-        **kwargs
+        self, input_path: str, output_path: str | None = None, page: int | None = None, **kwargs
     ) -> ConversionResult:
         """
         转换 PDF 文件为 CSV
@@ -66,21 +64,18 @@ class PDFConverter(BaseConverter):
 
         # 写入 CSV
         try:
-            encoding = kwargs.get('encoding', 'utf-8-sig')
+            encoding = kwargs.get("encoding", "utf-8-sig")
             result.rows_converted = self._write_csv(rows, output_path, encoding)
             result.success = True
         except Exception as e:
-            result.errors.append(f"写入 CSV 文件失败: {str(e)}")
+            result.errors.append(f"写入 CSV 文件失败: {e!s}")
             return result
 
         return result
 
     def _extract_tables(
-        self,
-        pdf_path: str,
-        page: Optional[int],
-        result: ConversionResult
-    ) -> List[Dict[str, Any]]:
+        self, pdf_path: str, page: int | None, result: ConversionResult
+    ) -> list[dict[str, Any]]:
         """
         从 PDF 中提取表格数据
 
@@ -90,34 +85,38 @@ class PDFConverter(BaseConverter):
         3. PyPDF2 + 正则表达式 - 兜底方案
         """
         # 方法 1: 尝试 pdfplumber
+        logger.debug("尝试 pdfplumber 提取: %s", pdf_path)
         rows = self._try_pdfplumber(pdf_path, page, result)
         if rows:
-            result.metadata['method'] = 'pdfplumber'
+            result.metadata["method"] = "pdfplumber"
+            logger.info("PDF提取成功: pdfplumber, %d 行, %s", len(rows), pdf_path)
             return rows
 
         # 方法 2: 尝试 tabula-py
+        logger.debug("尝试 tabula-py 提取: %s", pdf_path)
         rows = self._try_tabula(pdf_path, page, result)
         if rows:
-            result.metadata['method'] = 'tabula'
+            result.metadata["method"] = "tabula"
+            logger.info("PDF提取成功: tabula-py, %d 行, %s", len(rows), pdf_path)
             return rows
 
         # 方法 3: 兜底方案 - 使用简单的文本提取
+        logger.debug("尝试文本提取兜底: %s", pdf_path)
         rows = self._try_text_extraction(pdf_path, page, result)
         if rows:
-            result.metadata['method'] = 'text_extraction'
+            result.metadata["method"] = "text_extraction"
             result.warnings.append("使用文本提取方法，可能不够准确")
+            logger.warning("PDF提取使用文本兜底方案，可能不够准确: %s", pdf_path)
             return rows
 
+        logger.error("所有 PDF 提取方法均失败: %s", pdf_path)
         result.errors.append("所有 PDF 提取方法均失败")
         result.warnings.append("请确保 PDF 文件包含可提取的表格数据")
         return []
 
     def _try_pdfplumber(
-        self,
-        pdf_path: str,
-        page: Optional[int],
-        result: ConversionResult
-    ) -> Optional[List[Dict[str, Any]]]:
+        self, pdf_path: str, page: int | None, result: ConversionResult
+    ) -> list[dict[str, Any]] | None:
         """尝试使用 pdfplumber 提取表格"""
         try:
             import pdfplumber
@@ -147,38 +146,30 @@ class PDFConverter(BaseConverter):
                         for i, row in enumerate(table):
                             # 清理行数据
                             cleaned_row = [
-                                str(cell).strip() if cell is not None else ""
-                                for cell in row
+                                str(cell).strip() if cell is not None else "" for cell in row
                             ]
 
                             if i == 0:
                                 # 第一行作为表头
                                 headers = self._normalize_headers(cleaned_row)
-                            else:
-                                # 数据行
-                                if headers and len(cleaned_row) == len(headers):
-                                    row_dict = dict(zip(headers, cleaned_row))
-                                    all_rows.append(row_dict)
-                                elif headers:
-                                    # 处理列数不匹配的情况
-                                    row_dict = dict(zip(
-                                        headers,
-                                        cleaned_row[:len(headers)]
-                                    ))
-                                    all_rows.append(row_dict)
+                            # 数据行
+                            elif headers and len(cleaned_row) == len(headers):
+                                row_dict = dict(zip(headers, cleaned_row))
+                                all_rows.append(row_dict)
+                            elif headers:
+                                # 处理列数不匹配的情况
+                                row_dict = dict(zip(headers, cleaned_row[: len(headers)]))
+                                all_rows.append(row_dict)
 
             return all_rows
 
         except Exception as e:
-            result.warnings.append(f"pdfplumber 提取失败: {str(e)}")
+            result.warnings.append(f"pdfplumber 提取失败: {e!s}")
             return None
 
     def _try_tabula(
-        self,
-        pdf_path: str,
-        page: Optional[str],
-        result: ConversionResult
-    ) -> Optional[List[Dict[str, Any]]]:
+        self, pdf_path: str, page: str | None, result: ConversionResult
+    ) -> list[dict[str, Any]] | None:
         """尝试使用 tabula-py 提取表格"""
         try:
             import tabula
@@ -191,12 +182,7 @@ class PDFConverter(BaseConverter):
             pages = page if page else None
 
             # 读取所有表格
-            tables = tabula.read_pdf(
-                pdf_path,
-                pages=pages,
-                multiple_tables=True,
-                encoding='utf-8'
-            )
+            tables = tabula.read_pdf(pdf_path, pages=pages, multiple_tables=True, encoding="utf-8")
 
             all_rows = []
 
@@ -207,24 +193,18 @@ class PDFConverter(BaseConverter):
                 # 转换为字典列表
                 headers = self._normalize_headers(table.columns.tolist())
                 for _, row in table.iterrows():
-                    row_dict = {
-                        headers[i]: str(row.iloc[i]).strip()
-                        for i in range(len(headers))
-                    }
+                    row_dict = {headers[i]: str(row.iloc[i]).strip() for i in range(len(headers))}
                     all_rows.append(row_dict)
 
             return all_rows
 
         except Exception as e:
-            result.warnings.append(f"tabula-py 提取失败: {str(e)}")
+            result.warnings.append(f"tabula-py 提取失败: {e!s}")
             return None
 
     def _try_text_extraction(
-        self,
-        pdf_path: str,
-        page: Optional[int],
-        result: ConversionResult
-    ) -> Optional[List[Dict[str, Any]]]:
+        self, pdf_path: str, page: int | None, result: ConversionResult
+    ) -> list[dict[str, Any]] | None:
         """
         尝试使用简单文本提取（兜底方案）
 
@@ -260,25 +240,21 @@ class PDFConverter(BaseConverter):
             return all_rows
 
         except Exception as e:
-            result.warnings.append(f"文本提取失败: {str(e)}")
+            result.warnings.append(f"文本提取失败: {e!s}")
             return None
 
-    def _parse_text_as_table(
-        self,
-        text: str,
-        result: ConversionResult
-    ) -> List[Dict[str, Any]]:
+    def _parse_text_as_table(self, text: str, result: ConversionResult) -> list[dict[str, Any]]:
         """
         将文本解析为表格
 
         这是一个简单的启发式方法，尝试从文本中识别表格结构
         """
-        lines = text.strip().split('\n')
+        lines = text.strip().split("\n")
         if not lines:
             return []
 
         # 寻找看起来像表头的行（包含常见关键词）
-        header_keywords = ['日期', '时间', '交易', '金额', '对方', '商品', '说明']
+        header_keywords = ["日期", "时间", "交易", "金额", "对方", "商品", "说明"]
         header_line_idx = -1
 
         for i, line in enumerate(lines):
@@ -297,7 +273,7 @@ class PDFConverter(BaseConverter):
         rows = []
 
         # 解析数据行
-        for line in lines[header_line_idx + 1:]:
+        for line in lines[header_line_idx + 1 :]:
             if not line.strip():
                 continue
 
@@ -312,14 +288,14 @@ class PDFConverter(BaseConverter):
         # 如果表格解析失败，返回单列数据
         return [{"text": line.strip()} for line in lines if line.strip()]
 
-    def _parse_header_line(self, line: str) -> List[str]:
+    def _parse_header_line(self, line: str) -> list[str]:
         """
         解析表头行
 
         尝试多种分隔符
         """
         # 尝试不同的分隔符
-        for sep in ['\t', '|', '  ', ' ']:
+        for sep in ["\t", "|", "  ", " "]:
             parts = line.split(sep)
             if len(parts) > 1:
                 return [p.strip() for p in parts if p.strip()]
@@ -327,7 +303,7 @@ class PDFConverter(BaseConverter):
         # 如果没有找到分隔符，返回整行作为单个列
         return [line.strip()]
 
-    def _parse_data_line(self, line: str, expected_cols: int) -> Optional[List[str]]:
+    def _parse_data_line(self, line: str, expected_cols: int) -> list[str] | None:
         """
         解析数据行
 
@@ -339,7 +315,7 @@ class PDFConverter(BaseConverter):
             解析后的值列表，如果解析失败返回 None
         """
         # 尝试不同的分隔符
-        for sep in ['\t', '|', '  ', ' ']:
+        for sep in ["\t", "|", "  ", " "]:
             parts = line.split(sep)
             if len(parts) == expected_cols:
                 return [p.strip() for p in parts]
