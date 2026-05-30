@@ -2,9 +2,20 @@
 
 > 基于 Beancount 复式记账规范的多平台账单去重工具，支持支付宝、微信、银行卡账单的去重与格式转换。
 
+[![CI](https://img.shields.io/github/actions/workflow/status/CacinieP/FinancialBeancount/ci.yml?branch=main&style=flat-square)](https://github.com/CacinieP/FinancialBeancount/actions)
+[![License](https://img.shields.io/github/license/CacinieP/FinancialBeancount?style=flat-square)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square)](requirements.txt)
+
 **[Beancount](https://github.com/beancount/beancount)** 是一个优秀的纯文本复式记账系统。本项目是一个独立的第三方工具，用于将中国主流支付平台（支付宝、微信支付）和银行账单转换为 Beancount 格式，并智能去重。
 
 ---
+
+## Who This Is For / 适合谁
+
+- 已经在用 Beancount 或准备迁移到纯文本复式记账的人
+- 同时有支付宝、微信支付、银行卡账单，担心重复导入的人
+- 想在本地完成账单清洗，不希望把财务数据上传到第三方服务的人
+- 需要保留可审计中间结果，而不是只拿到一个黑箱导出文件的人
 
 ## Features / 功能特性
 
@@ -135,6 +146,7 @@ python example_usage.py
 - **All processing is local** - No data is sent to external servers
 - **input/ and output/ folders are excluded from git** - Your financial data never leaves your machine
 - **Sample test data is anonymized** - No real personal information in the repository
+- **Review-before-import workflow** - Fuzzy matches are reported for manual review instead of being silently discarded
 
 ## Contributing / 贡献指南
 
