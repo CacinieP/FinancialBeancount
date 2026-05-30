@@ -5,17 +5,14 @@ Tests for beancount_dedup.models — Transaction, DedupResult, DeduplicationRepo
 from datetime import datetime
 from decimal import Decimal
 
-import pytest
-
 from beancount_dedup.models import (
-    Transaction,
-    Platform,
-    TransactionType,
-    DedupStatus,
-    DedupResult,
     DeduplicationReport,
+    DedupResult,
+    DedupStatus,
+    Platform,
+    Transaction,
+    TransactionType,
 )
-
 
 # ── Enum tests ────────────────────────────────────────────────────────────
 
@@ -137,10 +134,20 @@ class TestTransactionToDict:
         )
         d = tx.to_dict()
         for key in [
-            "id", "platform", "datetime", "date", "time",
-            "amount", "counterparty", "description", "tx_type",
-            "payment_method", "status", "fingerprints",
-            "duplicate_of", "match_level",
+            "id",
+            "platform",
+            "datetime",
+            "date",
+            "time",
+            "amount",
+            "counterparty",
+            "description",
+            "tx_type",
+            "payment_method",
+            "status",
+            "fingerprints",
+            "duplicate_of",
+            "match_level",
         ]:
             assert key in d
 

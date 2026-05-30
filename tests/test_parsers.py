@@ -2,20 +2,17 @@
 Tests for beancount_dedup.parsers — format detection, amount/date parsing.
 """
 
-import csv
 import os
 import tempfile
-
-import pytest
 from decimal import Decimal
 
+import pytest
 from beancount_dedup.parsers.alipay_parser import AlipayParser
-from beancount_dedup.parsers.wechat_parser import WechatParser
 from beancount_dedup.parsers.bank_parser import BankParser
-from beancount_dedup.parsers.base import BaseParser, ParseResult, AutoParser
+from beancount_dedup.parsers.base import AutoParser, ParseResult
+from beancount_dedup.parsers.wechat_parser import WechatParser
 
-from tests.conftest import ALIPAY_CSV_DATA, WECHAT_CSV_DATA, BANK_CSV_DATA
-
+from tests.conftest import ALIPAY_CSV_DATA, BANK_CSV_DATA, WECHAT_CSV_DATA
 
 # ── detect_format ─────────────────────────────────────────────────────────
 
@@ -24,18 +21,37 @@ class TestAlipayDetectFormat:
     def test_valid_headers(self):
         parser = AlipayParser()
         headers = [
-            "交易号", "商家订单号", "交易创建时间", "付款时间",
-            "最近修改时间", "交易来源地", "类型", "交易对方",
-            "商品名称", "金额（元）", "收/支", "交易状态",
-            "服务费（元）", "成功退款（元）", "备注", "资金状态", "交易方式",
+            "交易号",
+            "商家订单号",
+            "交易创建时间",
+            "付款时间",
+            "最近修改时间",
+            "交易来源地",
+            "类型",
+            "交易对方",
+            "商品名称",
+            "金额（元）",
+            "收/支",
+            "交易状态",
+            "服务费（元）",
+            "成功退款（元）",
+            "备注",
+            "资金状态",
+            "交易方式",
         ]
         assert parser.detect_format(headers) is True
 
     def test_minimal_valid_headers(self):
         parser = AlipayParser()
         headers = [
-            "交易号", "商家订单号", "交易创建时间", "交易对方",
-            "金额（元）", "收/支", "交易状态", "其他列",
+            "交易号",
+            "商家订单号",
+            "交易创建时间",
+            "交易对方",
+            "金额（元）",
+            "收/支",
+            "交易状态",
+            "其他列",
         ]
         assert parser.detect_format(headers) is True
 
@@ -51,9 +67,17 @@ class TestAlipayDetectFormat:
     def test_wechat_headers_not_detected(self):
         parser = AlipayParser()
         headers = [
-            "交易时间", "交易类型", "交易对方", "商品",
-            "收/支", "金额(元)", "支付方式", "当前状态",
-            "交易单号", "商户单号", "备注",
+            "交易时间",
+            "交易类型",
+            "交易对方",
+            "商品",
+            "收/支",
+            "金额(元)",
+            "支付方式",
+            "当前状态",
+            "交易单号",
+            "商户单号",
+            "备注",
         ]
         assert parser.detect_format(headers) is False
 
@@ -62,9 +86,17 @@ class TestWechatDetectFormat:
     def test_valid_headers(self):
         parser = WechatParser()
         headers = [
-            "交易时间", "交易类型", "交易对方", "商品",
-            "收/支", "金额(元)", "支付方式", "当前状态",
-            "交易单号", "商户单号", "备注",
+            "交易时间",
+            "交易类型",
+            "交易对方",
+            "商品",
+            "收/支",
+            "金额(元)",
+            "支付方式",
+            "当前状态",
+            "交易单号",
+            "商户单号",
+            "备注",
         ]
         assert parser.detect_format(headers) is True
 
@@ -83,16 +115,27 @@ class TestBankDetectFormat:
     def test_invalid_headers_alipay(self):
         parser = BankParser()
         headers = [
-            "交易号", "商家订单号", "交易创建时间", "交易对方",
-            "金额（元）", "收/支", "交易状态",
+            "交易号",
+            "商家订单号",
+            "交易创建时间",
+            "交易对方",
+            "金额（元）",
+            "收/支",
+            "交易状态",
         ]
         assert parser.detect_format(headers) is False
 
     def test_invalid_headers_wechat(self):
         parser = BankParser()
         headers = [
-            "交易时间", "交易类型", "交易对方", "商品",
-            "收/支", "金额(元)", "当前状态", "交易单号",
+            "交易时间",
+            "交易类型",
+            "交易对方",
+            "商品",
+            "收/支",
+            "金额(元)",
+            "当前状态",
+            "交易单号",
         ]
         assert parser.detect_format(headers) is False
 
@@ -165,12 +208,11 @@ class TestParseDatetime:
 
 class TestParseCSVFiles:
     def _write_csv(self, content):
-        f = tempfile.NamedTemporaryFile(
+        with tempfile.NamedTemporaryFile(
             mode="w", suffix=".csv", delete=False, encoding="utf-8", newline=""
-        )
-        f.write(content)
-        f.close()
-        return f.name
+        ) as f:
+            f.write(content)
+            return f.name
 
     def test_alipay_csv_parse(self):
         path = self._write_csv(ALIPAY_CSV_DATA)

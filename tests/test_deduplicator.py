@@ -5,11 +5,7 @@ Tests for beancount_dedup.deduplicator — DeduplicationEngine.
 from datetime import datetime
 from decimal import Decimal
 
-import pytest
-
-from beancount_dedup.models import Transaction, Platform, DedupStatus
-from beancount_dedup.deduplicator import DeduplicationEngine
-
+from beancount_dedup.models import DedupStatus, Platform, Transaction
 
 # ── L1 exact match ────────────────────────────────────────────────────────
 
@@ -203,7 +199,7 @@ class TestResolvePriority:
     def test_wechat_beats_bank(self, engine):
         tx_w = Transaction(platform=Platform.WECHAT, counterparty="A", description="B")
         tx_b = Transaction(platform=Platform.BANK, counterparty="A", description="B")
-        keeper, discarder = engine.resolve_priority(tx_w, tx_b)
+        keeper, _discarder = engine.resolve_priority(tx_w, tx_b)
         assert keeper is tx_w
 
     def test_same_platform_more_info_wins(self, engine):
@@ -217,7 +213,7 @@ class TestResolvePriority:
             counterparty="LongerCounterpartyName",
             description="LongerDescriptionText",
         )
-        keeper, discarder = engine.resolve_priority(tx1, tx2)
+        keeper, _discarder = engine.resolve_priority(tx1, tx2)
         assert keeper is tx2
 
 
@@ -319,8 +315,8 @@ class TestGenerateReport:
             counterparty="支付宝-星巴克",
             description="快捷支付",
         )
-        r1 = engine.add_transaction(tx1)
-        r2 = engine.add_transaction(tx2)
+        engine.add_transaction(tx1)
+        engine.add_transaction(tx2)
         report = engine.generate_report()
         # Note: the engine counts results that were appended to self.results.
         # L1 match on tx2 returns early, so tx2's result is in the return value

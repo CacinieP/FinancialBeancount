@@ -3,15 +3,11 @@ Tests for beancount_dedup.account_classifier — BeancountAccountClassifier.
 """
 
 import pytest
-
 from beancount_dedup.account_classifier import (
-    BeancountAccountClassifier,
     AccountType,
-    AssetCategory,
     ExpenseCategory,
     IncomeCategory,
 )
-
 
 # ── Enum smoke tests ──────────────────────────────────────────────────────
 

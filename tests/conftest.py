@@ -2,16 +2,15 @@
 Shared fixtures and test data for the FinancialBeancount test suite.
 """
 
-import pytest
 from datetime import datetime
 from decimal import Decimal
 
-from beancount_dedup.models import Transaction, Platform, TransactionType, DedupStatus
-from beancount_dedup.fingerprinter import TransactionFingerprinter
-from beancount_dedup.deduplicator import DeduplicationEngine
+import pytest
 from beancount_dedup.account_classifier import BeancountAccountClassifier
+from beancount_dedup.deduplicator import DeduplicationEngine
 from beancount_dedup.exporters.beancount import BeancountExporter
-
+from beancount_dedup.fingerprinter import TransactionFingerprinter
+from beancount_dedup.models import Platform, Transaction, TransactionType
 
 # ── CSV test data (copied from test_e2e_pipeline.py) ──────────────────────
 
@@ -34,6 +33,7 @@ BANK_CSV_DATA = """交易日期,交易时间,收入,支出,余额,交易对手,�
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def fingerprinter():

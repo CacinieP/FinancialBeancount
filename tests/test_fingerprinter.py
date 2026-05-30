@@ -2,14 +2,11 @@
 Tests for beancount_dedup.fingerprinter — TransactionFingerprinter.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 
 import pytest
-
-from beancount_dedup.models import Transaction, Platform
-from beancount_dedup.fingerprinter import TransactionFingerprinter
-
+from beancount_dedup.models import Platform, Transaction
 
 # ── Fingerprint structure ─────────────────────────────────────────────────
 

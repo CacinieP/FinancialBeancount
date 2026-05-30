@@ -7,11 +7,7 @@ import tempfile
 from datetime import datetime
 from decimal import Decimal
 
-import pytest
-
-from beancount_dedup.models import Transaction, Platform, DedupStatus, TransactionType
-from beancount_dedup.exporters.beancount import BeancountExporter
-
+from beancount_dedup.models import DedupStatus, Platform, Transaction
 
 # ── export_transaction format ─────────────────────────────────────────────
 
