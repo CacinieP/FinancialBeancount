@@ -19,6 +19,7 @@ from .converters import AutoConverter, convert_to_csv
 from .deduplicator import DeduplicationEngine, DedupResult
 from .fingerprinter import TransactionFingerprinter
 from .models import Platform, Transaction
+from .state import StateStore
 
 __all__ = [
     "AccountType",
@@ -31,6 +32,7 @@ __all__ = [
     "ExpenseCategory",
     "IncomeCategory",
     "Platform",
+    "StateStore",
     "Transaction",
     "TransactionFingerprinter",
     "convert_to_csv",

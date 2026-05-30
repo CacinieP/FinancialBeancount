@@ -17,6 +17,7 @@ from beancount_dedup.models import Transaction, Platform
 from beancount_dedup.parsers.alipay_parser import AlipayParser, AlipayParserV2
 from beancount_dedup.parsers.wechat_parser import WechatParser
 from beancount_dedup.parsers.bank_parser import BankParser, CMBParser, ICBCParser
+from beancount_dedup.parsers.unionpay_parser import UnionPayParser
 from beancount_dedup.parsers.base import AutoParser
 from beancount_dedup.exporters.beancount import BeancountExporter
 from datetime import datetime, timedelta
@@ -131,6 +132,7 @@ def process_input_folder():
     auto_parser.register(WechatParser())
     auto_parser.register(CMBParser())
     auto_parser.register(ICBCParser())
+    auto_parser.register(UnionPayParser())
     auto_parser.register(BankParser())
 
     all_transactions = []
@@ -437,7 +439,7 @@ def demo_export_beancount():
     return output
 
 
-def parse_real_files(alipay_file=None, wechat_file=None, bank_file=None, output_file=None):
+def parse_real_files(alipay_file=None, wechat_file=None, bank_file=None, output_file=None, unionpay_file=None):
     """解析真实账单文件"""
     ensure_output_dir()
 
@@ -452,6 +454,7 @@ def parse_real_files(alipay_file=None, wechat_file=None, bank_file=None, output_
     auto_parser.register(WechatParser())
     auto_parser.register(CMBParser())
     auto_parser.register(ICBCParser())
+    auto_parser.register(UnionPayParser())
     auto_parser.register(BankParser())
 
     # 创建转换器
@@ -464,6 +467,7 @@ def parse_real_files(alipay_file=None, wechat_file=None, bank_file=None, output_
         (alipay_file, "支付宝"),
         (wechat_file, "微信"),
         (bank_file, "银行卡"),
+        (unionpay_file, "云闪付"),
     ]
 
     for filepath, name in files:
@@ -532,14 +536,15 @@ if __name__ == "__main__":
     parser.add_argument("--alipay", help="支付宝账单文件路径")
     parser.add_argument("--wechat", help="微信账单文件路径")
     parser.add_argument("--bank", help="银行卡账单文件路径")
+    parser.add_argument("--unionpay", help="云闪付账单文件路径")
     parser.add_argument("-o", "--output", help="输出文件路径")
     parser.add_argument("--demo", action="store_true", help="运行演示示例")
 
     args = parser.parse_args()
 
-    if args.alipay or args.wechat or args.bank:
+    if args.alipay or args.wechat or args.bank or args.unionpay:
         # 解析指定文件
-        parse_real_files(args.alipay, args.wechat, args.bank, args.output)
+        parse_real_files(args.alipay, args.wechat, args.bank, args.output, unionpay_file=args.unionpay)
     elif args.demo:
         # 运行演示
         print("运行演示示例（使用模拟数据）...")

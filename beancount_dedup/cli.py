@@ -14,10 +14,12 @@ from pathlib import Path
 from . import AutoConverter, DeduplicationEngine
 from .exporters.beancount import BeancountExporter
 from .models import Transaction
-from .parsers.alipay_parser import AlipayParser, AlipayParserV2
+from .parsers.alipay_parser import AlipayParser, AlipayParserV2, AlipayParserV3
 from .parsers.bank_parser import BankParser, CMBParser, ICBCParser
 from .parsers.base import AutoParser
+from .parsers.unionpay_parser import UnionPayParser
 from .parsers.wechat_parser import WechatParser
+from .state import StateStore
 
 logger = logging.getLogger(__name__)
 
@@ -42,16 +44,32 @@ def _ensure_output_dir(output_dir: Path) -> Path:
 def process_input_folder(
     input_dir: Path | None = None,
     output_dir: Path | None = None,
+    incremental: bool = False,
 ) -> None:
     """
     Automatically process all statement files in the input folder.
 
     Supported formats: CSV, XLSX, XLS, PDF.
-    Supported platforms: Alipay, WeChat Pay, bank cards.
+    Supported platforms: Alipay, WeChat Pay, bank cards, UnionPay.
+
+    When *incremental* is True, loads a previous state file so that
+    already-processed files (unchanged mtime) and transactions whose
+    L1 fingerprint was seen before are skipped.
     """
     input_dir = input_dir or INPUT_DIR
     output_dir = output_dir or OUTPUT_DIR
     _ensure_output_dir(output_dir)
+
+    # ── Incremental state ─────────────────────────────────────────────
+    state: StateStore | None = None
+    if incremental:
+        state = StateStore(path=output_dir / ".dedup_state.json")
+        state.load()
+        logger.info(
+            "Incremental mode: %d previously processed files, %d fingerprints",
+            state.file_count,
+            state.fingerprint_count,
+        )
 
     converted_dir = output_dir / "converted"
     converted_dir.mkdir(parents=True, exist_ok=True)
@@ -70,6 +88,17 @@ def process_input_folder(
         logger.error("No statement files found in %s", input_dir)
         logger.info("Supported formats: %s", ", ".join(supported_extensions))
         return
+
+    # Filter out already-processed files when in incremental mode.
+    if incremental and state is not None:
+        skipped = [f for f in input_files if state.is_file_processed(f)]
+        input_files = [f for f in input_files if not state.is_file_processed(f)]
+        if skipped:
+            logger.info(
+                "Skipping %d already-processed file(s): %s",
+                len(skipped),
+                ", ".join(f.name for f in skipped),
+            )
 
     csv_files = [f for f in input_files if f.suffix.lower() == ".csv"]
     convert_files = [f for f in input_files if f.suffix.lower() != ".csv"]
@@ -119,9 +148,11 @@ def process_input_folder(
     auto_parser = AutoParser()
     auto_parser.register(AlipayParser())
     auto_parser.register(AlipayParserV2())
+    auto_parser.register(AlipayParserV3())
     auto_parser.register(WechatParser())
     auto_parser.register(CMBParser())
     auto_parser.register(ICBCParser())
+    auto_parser.register(UnionPayParser())
     auto_parser.register(BankParser())
 
     all_transactions: list[Transaction] = []
@@ -153,7 +184,13 @@ def process_input_folder(
     logger.info("\n%d transactions to process...", len(all_transactions))
 
     engine = DeduplicationEngine()
-    engine.add_transactions(all_transactions)
+
+    if incremental and state is not None:
+        seen = state.get_seen_fingerprints()
+        engine.add_transactions_incremental(all_transactions, seen)
+        # The set `seen` was mutated in-place with new fingerprints.
+    else:
+        engine.add_transactions(all_transactions)
 
     report = engine.generate_report()
     logger.info("\n%s", report)
@@ -169,6 +206,15 @@ def process_input_folder(
     exporter.export_duplicate_report(engine.processed, output_path=report_file)
     logger.info("Duplicate report exported to: %s", report_file)
 
+    # ── Persist state ──────────────────────────────────────────────────
+    if incremental and state is not None:
+        processed_files = csv_files + [fp for fp, cr in conversion_results if cr.success]
+        new_fps = engine.get_l1_fingerprints()
+        for fp in processed_files:
+            state.mark_processed(fp, new_fps)
+        state.save()
+        logger.info("Incremental state saved (%d fingerprints total)", state.fingerprint_count)
+
 
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point for ``beancount-dedup``."""
@@ -179,9 +225,15 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--alipay", help="Alipay statement file path")
     parser.add_argument("--wechat", help="WeChat Pay statement file path")
     parser.add_argument("--bank", help="Bank statement file path")
+    parser.add_argument("--unionpay", help="UnionPay (云闪付) statement file path")
     parser.add_argument("-o", "--output", help="Output file path")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument("--demo", action="store_true", help="Run demo with sample data")
+    parser.add_argument(
+        "--incremental",
+        action="store_true",
+        help="Skip already-processed files and transactions (state persisted in output/.dedup_state.json)",
+    )
 
     args = parser.parse_args(argv)
     _setup_logging(verbose=args.verbose)
@@ -202,14 +254,16 @@ def main(argv: list[str] | None = None) -> None:
         demo_continuous_same_amount()
         demo_internal_transfer()
         demo_export_beancount()
-    elif args.alipay or args.wechat or args.bank:
+    elif args.alipay or args.wechat or args.bank or args.unionpay:
         from example_usage import parse_real_files  # type: ignore[import-not-found]
 
-        parse_real_files(args.alipay, args.wechat, args.bank, args.output)
+        parse_real_files(
+            args.alipay, args.wechat, args.bank, args.output, unionpay_file=args.unionpay
+        )
     else:
         logger.info("Auto-processing files from input/ folder")
         logger.info("Use --help for more options\n")
-        process_input_folder()
+        process_input_folder(incremental=args.incremental)
 
 
 if __name__ == "__main__":

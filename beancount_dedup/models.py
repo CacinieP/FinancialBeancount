@@ -17,6 +17,7 @@ class Platform(Enum):
     ALIPAY = "alipay"  # 支付宝
     WECHAT = "wechat"  # 微信支付
     BANK = "bank"  # 银行卡
+    UNIONPAY = "unionpay"  # 云闪付（银联）
 
     def __str__(self):
         return self.value
@@ -72,10 +73,19 @@ class Transaction:
     status: DedupStatus = DedupStatus.UNIQUE
     source_file: str = ""
 
+    # 原始交易状态（来自CSV，如 "交易关闭"、"对方已退还" 等）
+    raw_status: str = ""
+
+    # 标签（如 "cancelled"）
+    tags: set[str] = field(default_factory=set)
+
     # 去重相关字段
     fingerprints: dict[str, str] = field(default_factory=dict)
     duplicate_of: str | None = None  # 指向重复的交易ID
     match_level: str | None = None  # L1/L2/L3
+
+    # 退款关联字段
+    refund_of: str | None = None  # 指向被退款的原始交易ID
 
     def __post_init__(self):
         """初始化后处理"""
@@ -128,9 +138,12 @@ class Transaction:
             "tx_type": self.tx_type.value,
             "payment_method": self.payment_method,
             "status": self.status.value,
+            "raw_status": self.raw_status,
+            "tags": sorted(self.tags),
             "fingerprints": self.fingerprints,
             "duplicate_of": self.duplicate_of,
             "match_level": self.match_level,
+            "refund_of": self.refund_of,
         }
 
     def __repr__(self):
@@ -178,7 +191,7 @@ class DeduplicationReport:
     internal_transfer_count: int = 0
 
     by_platform: dict[str, int] = field(
-        default_factory=lambda: {"alipay": 0, "wechat": 0, "bank": 0}
+        default_factory=lambda: {"alipay": 0, "wechat": 0, "bank": 0, "unionpay": 0}
     )
     duplicates_detail: list[dict] = field(default_factory=list)
     review_queue: list[dict] = field(default_factory=list)

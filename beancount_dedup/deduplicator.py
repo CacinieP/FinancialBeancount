@@ -355,6 +355,42 @@ class DeduplicationEngine:
             results.append(result)
         return results
 
+    def add_transactions_incremental(
+        self, transactions: list[Transaction], seen_fingerprints: set[str]
+    ) -> list[DedupResult]:
+        """
+        Incrementally add transactions, skipping those whose L1 fingerprint
+        has already been seen in a previous run.
+
+        Returns results only for newly-processed transactions.
+        """
+        results: list[DedupResult] = []
+        for tx in transactions:
+            # Generate fingerprints early so we can check the L1 hash.
+            fingerprints = self.fingerprinter.generate_fingerprints(tx)
+            tx.fingerprints = fingerprints
+
+            l1_main = fingerprints["L1"]
+            l1_alts = fingerprints.get("L1_alt", [])
+            all_l1 = {l1_main} | set(l1_alts)
+
+            if all_l1 & seen_fingerprints:
+                # At least one L1 fingerprint was seen before — skip.
+                logger.debug("Skipping already-seen transaction: %s", tx)
+                continue
+
+            result = self.add_transaction(tx)
+            results.append(result)
+
+            # Record the new L1 fingerprints so they can be persisted later.
+            seen_fingerprints.update(all_l1)
+
+        return results
+
+    def get_l1_fingerprints(self) -> set[str]:
+        """Return all L1 fingerprints currently held in the index."""
+        return set(self.l1_index.keys())
+
     def get_unique_transactions(self) -> list[Transaction]:
         """获取去重后的唯一交易列表"""
         return [

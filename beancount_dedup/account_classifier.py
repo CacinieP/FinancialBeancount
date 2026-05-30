@@ -86,6 +86,7 @@ class BeancountAccountClassifier:
         "alipay": "Assets:Current:Digital:Alipay",
         "wechat": "Assets:Current:Digital:WeChat",
         "bank": "Assets:Current:Bank:Checking",
+        "unionpay": "Assets:Current:Digital:UnionPay",
     }
 
     # 支出关键词映射（更细致的分类）
@@ -353,6 +354,8 @@ class BeancountAccountClassifier:
             return self.PLATFORM_WALLET_ACCOUNTS["alipay"]
         elif platform == "wechat":
             return self.PLATFORM_WALLET_ACCOUNTS["wechat"]
+        elif platform == "unionpay":
+            return self.PLATFORM_WALLET_ACCOUNTS["unionpay"]
         elif platform == "bank":
             # 尝试从 counterparty 中提取银行名称
             for bank_name, code in self.BANK_CODE_MAPPING.items():
