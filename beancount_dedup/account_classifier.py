@@ -5,8 +5,14 @@ Beancount 账户分类系统
 参考：https://github.com/beancount/beancount
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .config import AccountConfig
 
 
 class AccountType(Enum):
@@ -303,8 +309,28 @@ class BeancountAccountClassifier:
         "Bilibili": "Expenses:Entertainment:Subscription",
     }
 
-    def __init__(self):
-        """初始化分类器"""
+    def __init__(self, accounts: AccountConfig | None = None):
+        """
+        初始化分类器
+
+        Args:
+            accounts: 用户账户配置（通常来自 YAML 的 accounts 段）。
+                platform_wallets / bank_codes 覆盖内置值；
+                merchant_overrides 优先于内置商户和关键词规则。
+        """
+        self.platform_wallets = dict(self.PLATFORM_WALLET_ACCOUNTS)
+        self.bank_codes = dict(self.BANK_CODE_MAPPING)
+        self.user_overrides: dict[str, str] = {}
+        if accounts is not None:
+            self.platform_wallets.update(accounts.platform_wallets)
+            self.bank_codes.update(accounts.bank_codes)
+            self.user_overrides = dict(accounts.merchant_overrides)
+
+    def _match_user_override(self, text: str, root: str) -> str | None:
+        for keyword, account in self.user_overrides.items():
+            if account.startswith(f"{root}:") and keyword.lower() in text:
+                return account
+        return None
 
     def classify_transaction(
         self, counterparty: str, description: str, tx_type: str = "", platform: str = ""
@@ -350,23 +376,23 @@ class BeancountAccountClassifier:
         platform = platform.lower()
 
         # 直接返回平台对应的账户
-        if platform == "alipay":
-            return self.PLATFORM_WALLET_ACCOUNTS["alipay"]
-        elif platform == "wechat":
-            return self.PLATFORM_WALLET_ACCOUNTS["wechat"]
-        elif platform == "unionpay":
-            return self.PLATFORM_WALLET_ACCOUNTS["unionpay"]
+        if platform in ("alipay", "wechat", "unionpay"):
+            return self.platform_wallets[platform]
         elif platform == "bank":
             # 尝试从 counterparty 中提取银行名称
-            for bank_name, code in self.BANK_CODE_MAPPING.items():
+            for bank_name, code in self.bank_codes.items():
                 if bank_name in counterparty:
                     return f"Assets:Current:Bank:{code}"
-            return self.PLATFORM_WALLET_ACCOUNTS["bank"]
+            return self.platform_wallets["bank"]
 
         return "Assets:Current:Cash"
 
     def _classify_expense(self, counterparty: str, description: str, text: str) -> str:
         """分类支出交易"""
+        user_account = self._match_user_override(text, "Expenses")
+        if user_account:
+            return user_account
+
         # 1. 检查特殊商户映射
         for merchant, account in self.MERCHANT_ACCOUNT_OVERRIDES.items():
             if merchant.lower() in text:
@@ -382,6 +408,10 @@ class BeancountAccountClassifier:
 
     def _classify_income(self, counterparty: str, description: str, text: str) -> str:
         """分类收入交易"""
+        user_account = self._match_user_override(text, "Income")
+        if user_account:
+            return user_account
+
         # 1. 检查退款
         if any(kw in text for kw in ["退款", "退回", "refund"]):
             return self.INCOME_CATEGORIES[IncomeCategory.REFUND]["退款"]

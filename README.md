@@ -297,6 +297,25 @@ Expenses:Shopping:Online         # 网购（京东/淘宝）
 Expenses:Entertainment:Subscription  # 订阅（Netflix 等）
 ```
 
+### 自定义分类
+
+复制 `beancount-dedup.example.yaml` 为 `./beancount-dedup.yaml`（或 `~/.beancount-dedup/config.yaml`，
+也可用 `beancount-dedup --config 路径` 指定），需要 `pip install "financial-beancount[config]"`：
+
+```yaml
+accounts:
+  platform_wallets:          # 覆盖平台钱包账户名
+    alipay: "Assets:Alipay"
+  merchant_overrides:        # 关键词 → 账户，优先于内置规则
+    "瑞幸": "Expenses:Food:Coffee"
+    "某某公司": "Income:Salary"
+  bank_codes:                # 银行名关键词 → Assets:Current:Bank:<代码>
+    "微众": "WEBANK"
+```
+
+`merchant_overrides` 的关键词在「对方 + 描述」里做不区分大小写的子串匹配；
+`Expenses:` 开头的规则只用于支出，`Income:` 开头的只用于收入。
+
 ## 支持平台
 
 | 平台 | 格式 | 状态 |
