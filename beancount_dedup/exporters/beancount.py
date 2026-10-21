@@ -8,6 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from ..account_classifier import BeancountAccountClassifier
+from ..config import AccountConfig
 from ..models import DedupStatus, Platform, Transaction
 
 
@@ -72,13 +73,19 @@ class BeancountExporter:
         "financial": ["手续费", "利息", "理财", "基金", "保险"],
     }
 
-    def __init__(self, account_map: dict[str, str] | None = None, use_classifier: bool = True):
+    def __init__(
+        self,
+        account_map: dict[str, str] | None = None,
+        use_classifier: bool = True,
+        accounts: AccountConfig | None = None,
+    ):
         """
         初始化导出器
 
         Args:
-            account_map: 自定义账户映射，覆盖默认值
+            account_map: 自定义账户映射，覆盖默认值（仅 use_classifier=False 时使用）
             use_classifier: 是否使用智能分类器（默认True）
+            accounts: 传给智能分类器的用户账户配置
         """
         self.account_map = {**self.DEFAULT_ACCOUNT_MAP}
         if account_map:
@@ -87,7 +94,7 @@ class BeancountExporter:
         # 初始化智能分类器
         self.use_classifier = use_classifier
         if use_classifier:
-            self.classifier = BeancountAccountClassifier()
+            self.classifier = BeancountAccountClassifier(accounts)
 
     def _sanitize_narration(self, text: str) -> str:
         """

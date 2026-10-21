@@ -20,6 +20,7 @@ from beancount_dedup.refund import (
 
 
 def _make_tx(
+    *,
     counterparty: str = "测试商家",
     amount: Decimal = Decimal("-100.00"),
     dt: datetime | None = None,

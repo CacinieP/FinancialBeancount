@@ -21,6 +21,9 @@ pdfplumber>=0.7.0
 # 或者使用 tabula-py（需要 Java 环境）
 # tabula-py>=2.0.0
 
+# YAML 配置文件（beancount-dedup.yaml）
+pyyaml>=6.0
+
 # PDF 创建（仅用于测试）
 # reportlab>=3.6.0
 

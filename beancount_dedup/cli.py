@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 from . import AutoConverter, DeduplicationEngine
+from .config import AppConfig, load_config
 from .exporters.beancount import BeancountExporter
 from .models import Transaction
 from .parsers.alipay_parser import AlipayParser, AlipayParserV2, AlipayParserV3
@@ -45,6 +46,7 @@ def process_input_folder(
     input_dir: Path | None = None,
     output_dir: Path | None = None,
     incremental: bool = False,
+    config: AppConfig | None = None,
 ) -> None:
     """
     Automatically process all statement files in the input folder.
@@ -56,6 +58,7 @@ def process_input_folder(
     already-processed files (unchanged mtime) and transactions whose
     L1 fingerprint was seen before are skipped.
     """
+    config = config or AppConfig()
     input_dir = input_dir or INPUT_DIR
     output_dir = output_dir or OUTPUT_DIR
     _ensure_output_dir(output_dir)
@@ -196,7 +199,7 @@ def process_input_folder(
     logger.info("\n%s", report)
 
     unique_txs = engine.get_unique_transactions()
-    exporter = BeancountExporter()
+    exporter = BeancountExporter(accounts=config.accounts)
 
     output_file = str(output_dir / "output.beancount")
     exporter.export(unique_txs, output_path=output_file)
@@ -235,8 +238,18 @@ def main(argv: list[str] | None = None) -> None:
         help="Skip already-processed files and transactions (state persisted in output/.dedup_state.json)",
     )
 
+    parser.add_argument(
+        "--config",
+        help="YAML config file (default: search ./beancount-dedup.yaml, "
+        "./beancount-dedup.yml, ./.beancount-dedup.yaml, ~/.beancount-dedup/config.yaml)",
+    )
+
     args = parser.parse_args(argv)
     _setup_logging(verbose=args.verbose)
+
+    if args.config and not Path(args.config).exists():
+        parser.error(f"config file not found: {args.config}")
+    config = load_config(args.config)
 
     if args.demo:
         logger.info("Running demo with sample data...")
@@ -263,7 +276,7 @@ def main(argv: list[str] | None = None) -> None:
     else:
         logger.info("Auto-processing files from input/ folder")
         logger.info("Use --help for more options\n")
-        process_input_folder(incremental=args.incremental)
+        process_input_folder(incremental=args.incremental, config=config)
 
 
 if __name__ == "__main__":

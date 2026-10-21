@@ -5,6 +5,7 @@
 # Or pass via CLI: beancount-dedup --config path/to/config.yaml
 
 # ── Deduplication thresholds ──────────────────────────────────────
+# Not applied yet: the engine currently uses its built-in thresholds.
 dedup:
   l1_time_window_seconds: 120      # 2 min — exact match time window
   l2_time_window_seconds: 120      # 2 min — loose match time window
@@ -19,17 +20,20 @@ accounts:
     wechat: "Assets:Current:Digital:WeChat"
     bank:   "Assets:Current:Bank:Checking"
 
-  # Add custom merchant → account mappings (merged with built-in ones)
+  # Keyword → account rules, checked before the built-in ones.
+  # Matched case-insensitively against "counterparty + description";
+  # Expenses:* rules apply to expenses only, Income:* rules to income only.
   merchant_overrides:
     # "星巴克": "Expenses:Food:Coffee"
     # "瑞幸": "Expenses:Food:Coffee"
     # "盒马鲜生": "Expenses:Food:Grocery"
 
-  # Add bank name → code mappings
+  # Bank name keyword → Assets:Current:Bank:<code>
   bank_codes:
     # "微众": "WEBANK"
 
 # ── Platform settings ─────────────────────────────────────────────
+# Not applied yet: priority and transfer keywords are currently built in.
 platforms:
   # Priority order: higher priority platforms are kept when duplicates found
   priority:
@@ -45,9 +49,11 @@ platforms:
     #   - "银联转账"
 
 # ── Paths ──────────────────────────────────────────────────────────
+# Not applied yet: the CLI currently always uses ./input and ./output.
 # input_dir: input
 # output_dir: output
 
 # ── Export settings ────────────────────────────────────────────────
+# Not applied yet: metadata is always included and the currency is CNY.
 # include_metadata: true
 # operating_currency: "CNY"

@@ -92,17 +92,18 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
 def load_yaml(path: Path) -> dict[str, Any]:
     """Load a YAML file, returning an empty dict on failure."""
+    if not path.exists():
+        logger.debug("Config file not found: %s", path)
+        return {}
+
     try:
         import yaml
     except ImportError:
         logger.warning(
-            "PyYAML not installed — install it with `pip install pyyaml` "
-            "to enable config file support. Using defaults."
+            "Found config file %s but PyYAML is not installed — install it with "
+            "`pip install pyyaml` to enable config file support. Using defaults.",
+            path,
         )
-        return {}
-
-    if not path.exists():
-        logger.debug("Config file not found: %s", path)
         return {}
 
     try:
@@ -123,18 +124,14 @@ def _dict_to_dedup(d: dict[str, Any]) -> DedupConfig:
     )
 
 
-def _dict_to_accounts(d: dict[str, Any]) -> AccountConfig:
+def _dict_to_accounts(d: dict[str, Any] | None) -> AccountConfig:
+    # A YAML key whose children are all commented out parses to None.
+    d = d or {}
+    defaults = AccountConfig()
     return AccountConfig(
-        platform_wallets=d.get(
-            "platform_wallets",
-            {
-                "alipay": "Assets:Current:Digital:Alipay",
-                "wechat": "Assets:Current:Digital:WeChat",
-                "bank": "Assets:Current:Bank:Checking",
-            },
-        ),
-        merchant_overrides=d.get("merchant_overrides", {}),
-        bank_codes=d.get("bank_codes", {}),
+        platform_wallets={**defaults.platform_wallets, **(d.get("platform_wallets") or {})},
+        merchant_overrides=dict(d.get("merchant_overrides") or {}),
+        bank_codes=dict(d.get("bank_codes") or {}),
     )
 
 
@@ -167,7 +164,7 @@ def load_config(config_path: str | None = None) -> AppConfig:
 
     return AppConfig(
         dedup=_dict_to_dedup(raw.get("dedup", {})),
-        accounts=_dict_to_accounts(raw.get("accounts", {})),
+        accounts=_dict_to_accounts(raw.get("accounts")),
         platforms=_dict_to_platforms(raw.get("platforms", {})),
         input_dir=raw.get("input_dir", "input"),
         output_dir=raw.get("output_dir", "output"),
