@@ -41,7 +41,9 @@ class TestExportTransaction:
     def test_income_format(self, exporter, sample_income_alipay):
         out = exporter.export_transaction(sample_income_alipay)
         assert "Assets:" in out
-        assert "Income:" in out or "Expenses:" in out
+        # This fixture is a wallet top-up: it needs a transfer counter-account.
+        assert "Equity:Transfers:Unassigned" in out
+        assert " ! " in out
 
     def test_review_flag_is_exclamation(self, exporter):
         tx = Transaction(

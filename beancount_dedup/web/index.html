@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>账簿 · 本地财务工作台</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到工作区</a>
+  <aside class="sidebar" aria-label="主导航">
+    <a class="brand" href="#transactions"><span class="brand-mark">账</span><span>账簿<span class="brand-sub">FINANCIAL BEANCOUNT</span></span></a>
+    <span class="nav-caption">工作区</span>
+    <nav class="nav-list">
+      <button class="nav-item active" data-page="transactions" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h4"/></svg><span>交易复核</span><span id="nav-pending" class="nav-count" hidden></span></button>
+      <button class="nav-item" data-page="reconciliation"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16M17 4v16M3 8h8M13 16h8"/><circle cx="7" cy="8" r="3"/><circle cx="17" cy="16" r="3"/></svg><span>账簿核对</span></button>
+      <button class="nav-item" data-page="exports"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg><span>导入导出</span></button>
+      <button class="nav-item" data-page="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4M10 10h4v4h-4z"/></svg><span>模型与规则</span></button>
+    </nav>
+    <div class="sidebar-bottom"><div class="local-note"><span class="status-dot"></span><span>本机处理</span></div><p>让账单回到账簿里。<br>数据与模型，都在本地。</p><span class="sidebar-version">FinancialBeancount</span></div>
+  </aside>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="workspace-heading"><span class="workspace-icon" aria-hidden="true">⌘</span><span id="workspace-name">本地工作区</span><span class="breadcrumb-separator">/</span><span id="breadcrumb">交易复核</span></div>
+      <button class="model-pill" id="model-status-button" data-page="settings"><span id="model-dot" class="status-dot muted"></span><span id="top-model-status">正在连接 1B…</span><span aria-hidden="true">↗</span></button>
+    </header>
+    <div id="demo-banner" class="demo-banner" hidden><span>合成示例</span>你正在试用合成账单，这些不是用户的真实财务数据。<button data-action="import-statements">导入自己的账单 →</button></div>
+    <div id="job-banner" class="job-banner" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="job-label"></span><span class="job-note">请保留此页面</span></div>
+    <div id="error-banner" class="error-banner" role="alert" hidden><span id="error-message"></span><button id="dismiss-error" aria-label="收起错误信息">×</button></div>
+
+    <main id="main" tabindex="-1">
+      <section id="page-transactions" class="page active" aria-labelledby="transactions-title">
+        <div class="page-heading"><div><div class="eyebrow">REVIEW YOUR TRANSACTIONS</div><h1 id="transactions-title">交易复核</h1><p>让每一笔交易，都有合适的去处。</p></div><div class="heading-actions"><button class="button secondary" data-action="import-statements" data-mutation><span aria-hidden="true">＋</span> 导入账单</button><button class="button primary" id="classify-button" data-action="classify" data-mutation data-requires="model-statements"><span class="sparkle" aria-hidden="true">✦</span> 用 1B 辅助分类</button></div></div>
+        <div class="stats-grid" id="review-stats">
+          <button class="stat-card" data-filter="all"><span class="stat-label">全部交易</span><strong id="count-transactions">—</strong><span class="stat-caption">当前工作区</span></button>
+          <button class="stat-card" data-filter="pending"><span class="stat-label">待复核<span class="tiny-dot amber"></span></span><strong id="count-pending">—</strong><span class="stat-caption">等待你的确认</span></button>
+          <button class="stat-card" data-filter="suggested"><span class="stat-label">模型建议<span class="tiny-dot teal"></span></span><strong id="count-suggested">—</strong><span class="stat-caption">由本地 1B 提供</span></button>
+          <button class="stat-card" data-filter="matched"><span class="stat-label">已在账簿中<span class="tiny-dot blue"></span></span><strong id="count-matched">—</strong><span class="stat-caption">核对后自动识别</span></button>
+        </div>
+
+        <div id="statement-drop" class="statement-drop" tabindex="0" role="button" aria-label="导入账单，可拖入 CSV、Excel 或 PDF 文件"><span class="drop-icon" aria-hidden="true">↥</span><span><strong>拖入账单文件</strong><span class="muted-text">，或点击选择</span></span><span class="drop-formats">CSV · Excel · PDF</span></div>
+
+        <div id="review-empty" class="empty-card" hidden><div class="empty-art" aria-hidden="true"><span class="paper-line"></span><span class="paper-line short"></span><span class="empty-check">✓</span></div><span class="eyebrow">A LITTLE ORDER, A LITTLE CLARITY</span><h2>从第一张账单开始</h2><p>导入支付宝、微信、银行卡或云闪付账单，<br>一起把交易分类、核对，整理成 Beancount。</p><button class="button primary" data-action="import-statements" data-mutation>＋ 导入账单</button><button class="text-button" data-action="demo" data-mutation>先试用合成账单 <span aria-hidden="true">→</span></button><div class="empty-steps"><span><b>01</b> 导入账单</span><span><b>02</b> 复核分类</span><span><b>03</b> 核对并导出</span></div></div>
+
+        <div id="review-workspace" class="review-workspace" hidden>
+          <section class="card transaction-card" aria-label="交易列表">
+            <div class="table-toolbar"><div class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input id="transaction-search" type="search" placeholder="搜索商家、描述、账户…" aria-label="搜索交易"></div><select id="transaction-filter" aria-label="筛选交易状态"><option value="all">全部状态</option><option value="pending">待复核</option><option value="confirmed">已确认</option><option value="suggested">模型建议</option><option value="fallback">待分类</option><option value="matched">已在账簿中</option><option value="differences">核对有差异</option></select></div>
+            <div id="batch-toolbar" class="batch-toolbar" hidden><strong id="selected-count"></strong><input id="batch-account" list="account-options" placeholder="可选：统一设置账户" aria-label="批量分类账户" spellcheck="false"><button id="batch-confirm" class="button small primary" data-mutation>确认所选</button><button id="clear-selection" class="icon-button" aria-label="取消全部选择">×</button></div>
+            <div class="table-scroll"><table class="transaction-table"><thead><tr><th class="check-col"><input id="select-all" type="checkbox" aria-label="选择本页全部交易"></th><th scope="col">日期</th><th scope="col">交易内容</th><th scope="col">金额</th><th scope="col">分类与状态</th><th class="row-arrow" aria-hidden="true"></th></tr></thead><tbody id="transaction-rows"></tbody></table><div id="no-filter-results" class="inline-empty" hidden>没有找到符合条件的交易。试试其他关键词或筛选条件。</div></div>
+            <div class="table-footer"><span id="table-summary"></span><div class="pagination"><button id="page-previous" class="icon-button" aria-label="上一页">←</button><span id="page-number"></span><button id="page-next" class="icon-button" aria-label="下一页">→</button></div></div>
+          </section>
+
+          <aside id="transaction-detail" class="card detail-panel" aria-label="交易详情"><div class="detail-empty"><span aria-hidden="true">↖</span><h3>点开一笔交易</h3><p>查看来源、核对分类，<br>再确认它的去处。</p></div></aside>
+        </div>
+      </section>
+
+      <section id="page-reconciliation" class="page" aria-labelledby="reconciliation-title" hidden>
+        <div class="page-heading"><div><div class="eyebrow">RECONCILE WITH CONFIDENCE</div><h1 id="reconciliation-title">账簿核对</h1><p>用日期、资产账户与精确金额，逐笔核对已有账簿。</p></div><button id="reconcile-button" class="button primary" data-action="reconcile" data-mutation data-requires="ledger-statements">开始核对 <span aria-hidden="true">→</span></button></div>
+        <div class="reconcile-setup">
+          <div class="card ledger-card"><div class="section-heading"><div class="section-icon" aria-hidden="true">▤</div><div><h2>已有 Beancount 账簿</h2><p id="ledger-summary">导入主账簿，以及它 include 的文件。</p></div><span id="ledger-loaded-badge" class="badge teal" hidden>已导入</span></div><div id="ledger-files" class="ledger-file-list"></div><div class="button-row"><button class="button secondary" data-action="import-ledger" data-mutation>选择账簿文件</button><button class="button ghost" data-action="import-ledger-folder" data-mutation>选择账簿文件夹</button></div><p class="field-hint">多文件账簿请选择完整文件夹，保留 include 的相对路径。</p></div>
+          <div class="card scope-card"><h2>核对范围</h2><label for="date-window">交易日期窗口</label><select id="date-window"><option value="0">同一天 · 推荐</option><option value="1">前后 1 天</option><option value="2">前后 2 天</option><option value="3">前后 3 天</option></select><p class="field-hint">金额和币种始终精确匹配。多个候选会留给你复核。</p><div class="scope-divider"></div><div class="scope-fact"><span>账单</span><strong id="reconcile-statement-count">尚未导入</strong></div><div class="scope-fact"><span>币种</span><strong id="workspace-currency">—</strong></div></div>
+        </div>
+        <details class="card account-mapping"><summary><span><strong>资产账户映射</strong><span class="muted-text"> · 让平台钱包对应你的账户树</span></span><span aria-hidden="true">⌄</span></summary><form id="wallet-form"><div class="wallet-grid"><label>支付宝<input name="alipay" list="account-options" spellcheck="false" placeholder="Assets:Current:Digital:Alipay"></label><label>微信支付<input name="wechat" list="account-options" spellcheck="false" placeholder="Assets:Current:Digital:WeChat"></label><label>银行卡<input name="bank" list="account-options" spellcheck="false" placeholder="Assets:Current:Bank:Checking"></label><label>云闪付<input name="unionpay" list="account-options" spellcheck="false" placeholder="Assets:Current:Digital:UnionPay"></label></div><div class="form-footer"><span class="field-hint">修改后，请重新运行核对。</span><button class="button secondary small" type="submit" data-mutation>保存账户映射</button></div></form></details>
+        <div id="reconcile-empty" class="card quiet-empty"><span class="quiet-icon" aria-hidden="true">◎</span><h3>让账单与账簿对上号</h3><p>导入账单和已有账簿后，点击「开始核对」。<br>核对只读取账簿，会保留所有不确定的交易。</p><button class="text-button" data-page="transactions">去导入账单 →</button></div>
+        <div id="reconcile-results" hidden><div id="reconciliation-stats" class="stats-grid"></div><div class="card report-card"><div class="report-top"><div><h2>逐笔核对结果</h2><p id="report-scope" class="field-hint"></p></div><span id="report-status" class="badge"></span></div><div id="report-tabs" class="report-tabs" role="tablist" aria-label="核对结果分类"><button class="active" data-report-tab="matched" role="tab" aria-selected="true">已匹配</button><button data-report-tab="statement_only" role="tab" aria-selected="false">仅账单中</button><button data-report-tab="ledger_only" role="tab" aria-selected="false">仅账簿中</button><button data-report-tab="ambiguous" role="tab" aria-selected="false">需人工复核</button></div><div id="report-content"></div></div></div>
+      </section>
+
+      <section id="page-exports" class="page" aria-labelledby="exports-title" hidden>
+        <div class="page-heading"><div><div class="eyebrow">YOUR LEDGER, YOUR WORKFLOW</div><h1 id="exports-title">导入导出</h1><p>与 Beancount、beangulp 和 Fava 自然衔接。</p></div><button class="button secondary" data-action="import-ledger" data-mutation>导入 Beancount 账簿</button></div>
+        <div class="export-layout"><div class="export-options"><div class="card"><div class="section-heading compact"><div><h2>导出内容</h2><p>选择与你的账簿结构相合的格式。</p></div></div><fieldset class="export-kinds"><legend class="sr-only">导出格式</legend><label class="choice-card"><input type="radio" name="export-kind" value="standalone" checked><span><strong>独立账簿</strong><small>包含账户声明，可单独打开使用。</small></span><span class="choice-icon" aria-hidden="true">▤</span></label><label class="choice-card"><input type="radio" name="export-kind" value="fragment"><span><strong>交易片段</strong><small>仅交易条目，include 到现有账簿。</small></span><span class="choice-icon" aria-hidden="true">↳</span></label><label class="choice-card"><input type="radio" name="export-kind" value="native" id="export-native"><span><strong>原生 Beancount</strong><small>保留已导入账簿的原生条目。</small></span><span class="choice-icon" aria-hidden="true">⌘</span></label></fieldset><div class="export-switches"><label class="switch-row"><span><strong>仅导出已确认交易</strong><small>将待复核的交易留在工作区</small></span><input id="only-confirmed" class="switch" type="checkbox"></label><label class="switch-row"><span><strong>排除核对中已匹配的交易</strong><small>确认匹配无误后启用</small></span><input id="exclude-matched" class="switch" type="checkbox"></label></div><button id="generate-export" class="button primary full-width" data-action="export" data-mutation data-requires="exportable">生成导出预览 <span aria-hidden="true">→</span></button></div><div class="card source-card"><div class="section-heading compact"><h2>已导入的文件</h2><span id="source-file-count" class="badge neutral">0</span></div><div id="source-files" class="source-file-list"><p class="field-hint">这里会列出你已导入的账单与账簿。</p></div><button class="text-button" data-action="import-statements" data-mutation>＋ 继续导入账单</button></div></div><div class="card preview-card"><div class="preview-heading"><div><h2>Beancount 预览</h2><p id="export-info">预览生成后，可下载为文本账簿。</p></div><a id="export-download" class="button primary small" hidden download>下载文件 ↓</a></div><div id="export-warnings" class="export-warnings" hidden></div><div id="preview-empty" class="preview-empty"><span aria-hidden="true">{ }</span><h3>你的账簿，会在这里准备好</h3><p>选择导出格式，生成真实的 Beancount 文本。</p></div><pre id="export-preview" tabindex="0" aria-label="Beancount 文本预览" hidden></pre><div class="preview-footer"><span class="status-dot"></span>标准文本格式 · 随时可在你的编辑器中继续整理</div></div></div>
+      </section>
+
+      <section id="page-settings" class="page" aria-labelledby="settings-title" hidden>
+        <div class="page-heading"><div><div class="eyebrow">SMALL MODEL, YOUR OWN RULES</div><h1 id="settings-title">模型与规则</h1><p>让本地 1B 处理不确定的分类，让规则记住你的习惯。</p></div></div>
+        <div class="card model-card"><div class="model-visual" aria-hidden="true"><span>1B</span><i></i><i></i></div><div class="model-description"><div class="button-row"><h2>MiniCPM-V 4.7</h2><span id="settings-model-badge" class="badge neutral">正在连接</span></div><p>轻量本地模型，用于辅助交易分类。</p><p id="settings-model-detail" class="field-hint">正在检查模型状态…</p></div><div class="model-actions"><button class="button secondary" data-action="import-model" data-mutation>选择 GGUF 并载入</button><span class="field-hint">选择此电脑上的模型文件</span></div></div>
+        <div class="principle-note"><span aria-hidden="true">✦</span><p>规则优先，模型补充。模型提供的分类仍需你确认；金额与账簿核对由程序精确处理。</p></div>
+        <div class="card rules-card"><div class="section-heading"><div><h2>你的分类规则</h2><p>用商家或描述中的关键词，匹配自己的 Beancount 账户。</p></div><button class="button primary small" id="save-rules" data-mutation>保存规则</button></div><fieldset class="rule-mode"><legend>规则使用方式</legend><label><input type="radio" name="rule-mode" value="append" checked><span><strong>补充默认规则</strong><small>保留内置账户树，加入你的关键词</small></span></label><label><input type="radio" name="rule-mode" value="replace"><span><strong>使用自己的规则</strong><small>整体替换内置分类规则</small></span></label></fieldset><div class="rule-tabs" role="tablist" aria-label="规则类型"><button class="active" data-rule-tab="merchant_overrides" role="tab" aria-selected="true">商家关键词</button><button data-rule-tab="expense_rules" role="tab" aria-selected="false">支出分类</button><button data-rule-tab="income_rules" role="tab" aria-selected="false">收入分类</button></div><div class="rule-table-head"><span>匹配关键词</span><span>Beancount 账户</span><span></span></div><div id="rule-rows"></div><div class="rules-footer"><button id="add-rule" class="text-button">＋ 添加一条规则</button><span id="rules-save-status" class="field-hint">修改后点击保存，应用到当前工作区。</span></div></div>
+        <div class="card reset-card"><div><h3>清空当前工作区</h3><p>重新开始前，记得导出需要保留的内容。</p></div><button class="button danger ghost" data-action="reset" data-mutation>清空工作区</button></div>
+      </section>
+      <footer class="page-footer"><span>账簿清楚一点，生活轻松一点。</span><span>LOCAL FIRST · BEANCOUNT</span></footer>
+    </main>
+  </div>
+
+  <input id="statement-input" class="sr-only" tabindex="-1" type="file" accept=".csv,.xlsx,.xls,.pdf" multiple aria-label="选择账单文件">
+  <input id="ledger-input" class="sr-only" tabindex="-1" type="file" accept=".beancount,.bean,.bc,.ledger,.txt" multiple aria-label="选择 Beancount 账簿文件">
+  <input id="ledger-folder-input" class="sr-only" tabindex="-1" type="file" webkitdirectory multiple aria-label="选择完整账簿文件夹">
+  <input id="model-input" class="sr-only" tabindex="-1" type="file" accept=".gguf" aria-label="选择 GGUF 模型文件">
+  <datalist id="account-options"></datalist>
+  <dialog id="ledger-dialog" class="app-dialog" aria-labelledby="ledger-dialog-title"><form id="ledger-import-form"><div class="dialog-heading"><span class="eyebrow">BEANCOUNT IMPORT</span><button type="button" class="icon-button" data-close-dialog="ledger-dialog" aria-label="关闭">×</button></div><h2 id="ledger-dialog-title">选择主账簿</h2><p id="ledger-dialog-description"></p><label for="ledger-main-select">包含 include 声明的入口文件</label><select id="ledger-main-select" required></select><p class="field-hint">其余文件会一起导入，保留原来的相对路径。</p><div class="dialog-actions"><button type="button" class="button secondary" data-close-dialog="ledger-dialog">取消</button><button type="submit" class="button primary">导入账簿</button></div></form></dialog>
+  <dialog id="confirm-dialog" class="app-dialog" aria-labelledby="confirm-title"><form method="dialog"><span class="eyebrow">WORKSPACE</span><h2 id="confirm-title"></h2><p id="confirm-description"></p><div class="dialog-actions"><button class="button secondary" value="cancel" autofocus>取消</button><button id="confirm-accept" class="button primary" value="confirm">确认</button></div></form></dialog>
+  <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+</body>
+</html>

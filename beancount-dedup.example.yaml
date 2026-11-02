@@ -14,6 +14,10 @@ dedup:
 
 # ── Account classification ────────────────────────────────────────
 accounts:
+  # append: extend bundled rules; replace: use only your rules below.
+  rules_mode: append
+  expense_rules: {}
+  income_rules: {}
   # Override platform wallet account names
   platform_wallets:
     alipay: "Assets:Current:Digital:Alipay"
@@ -32,6 +36,16 @@ accounts:
   bank_codes:
     # "微众": "WEBANK"
 
+# ── Optional local model (used only with --ai-classify / --model-file) ──
+ai:
+  base_url: "http://127.0.0.1:8080/v1"  # loopback addresses only
+  model: "openbmb/MiniCPM-V-4.7-1B"     # must match your server's model alias
+  timeout_seconds: 30
+  min_confidence: 0.8                    # model self-rating, not calibrated accuracy
+  max_requests: 100                     # per run; identical prompts share a result
+  allowed_accounts: []                  # empty = derive from active classification rules
+  # To use your own tree, list permitted Expenses:* / Income:* accounts here.
+
 # ── Platform settings ─────────────────────────────────────────────
 # Not applied yet: priority and transfer keywords are currently built in.
 platforms:
@@ -49,11 +63,11 @@ platforms:
     #   - "银联转账"
 
 # ── Paths ──────────────────────────────────────────────────────────
-# Not applied yet: the CLI currently always uses ./input and ./output.
+# Used by the main beancount-dedup CLI.
 # input_dir: input
 # output_dir: output
 
 # ── Export settings ────────────────────────────────────────────────
-# Not applied yet: metadata is always included and the currency is CNY.
+# Used by the main beancount-dedup CLI (single-currency statements).
 # include_metadata: true
 # operating_currency: "CNY"

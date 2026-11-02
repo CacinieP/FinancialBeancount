@@ -51,6 +51,26 @@ class AccountConfig:
     # Bank name → code mapping
     bank_codes: dict[str, str] = field(default_factory=dict)
 
+    # append extends the bundled rules; replace uses only user rules.
+    rules_mode: str = "append"
+    expense_rules: dict[str, str] = field(default_factory=dict)
+    income_rules: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class AIConfig:
+    """Opt-in, local-only OpenAI-compatible classification service."""
+
+    base_url: str = "http://127.0.0.1:8080/v1"
+    model: str = "openbmb/MiniCPM-V-4.7-1B"
+    timeout_seconds: float = 30.0
+    min_confidence: float = 0.8
+    max_requests: int = 100
+    # Optional explicit account tree; otherwise derive it from active rules.
+    allowed_accounts: list[str] = field(default_factory=list)
+    # Enable schema-constrained replies on compatible local servers.
+    structured_output: bool = False
+
 
 @dataclass
 class PlatformConfig:
@@ -69,6 +89,7 @@ class AppConfig:
     dedup: DedupConfig = field(default_factory=DedupConfig)
     accounts: AccountConfig = field(default_factory=AccountConfig)
     platforms: PlatformConfig = field(default_factory=PlatformConfig)
+    ai: AIConfig = field(default_factory=AIConfig)
 
     # Paths
     input_dir: str = "input"
@@ -132,6 +153,9 @@ def _dict_to_accounts(d: dict[str, Any] | None) -> AccountConfig:
         platform_wallets={**defaults.platform_wallets, **(d.get("platform_wallets") or {})},
         merchant_overrides=dict(d.get("merchant_overrides") or {}),
         bank_codes=dict(d.get("bank_codes") or {}),
+        rules_mode=d.get("rules_mode", "append"),
+        expense_rules=dict(d.get("expense_rules") or {}),
+        income_rules=dict(d.get("income_rules") or {}),
     )
 
 
@@ -166,6 +190,7 @@ def load_config(config_path: str | None = None) -> AppConfig:
         dedup=_dict_to_dedup(raw.get("dedup", {})),
         accounts=_dict_to_accounts(raw.get("accounts")),
         platforms=_dict_to_platforms(raw.get("platforms", {})),
+        ai=AIConfig(**(raw.get("ai") or {})),
         input_dir=raw.get("input_dir", "input"),
         output_dir=raw.get("output_dir", "output"),
         include_metadata=raw.get("include_metadata", True),
