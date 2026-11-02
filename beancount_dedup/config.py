@@ -68,6 +68,8 @@ class AIConfig:
     max_requests: int = 100
     # Optional explicit account tree; otherwise derive it from active rules.
     allowed_accounts: list[str] = field(default_factory=list)
+    # Enable schema-constrained replies on compatible local servers.
+    structured_output: bool = False
 
 
 @dataclass

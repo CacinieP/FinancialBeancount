@@ -238,6 +238,7 @@ def test_actual_local_request_ignores_proxy_and_sends_only_minimum_text(
     request = state["requests"][0]
     assert request["path"] == "/v1/chat/completions"
     body = request["body"]
+    assert "response_format" not in body  # Legacy local endpoints keep their existing contract.
     content = json.loads(body["messages"][1]["content"])
     assert content == {
         "direction": "expense",
@@ -248,6 +249,19 @@ def test_actual_local_request_ignores_proxy_and_sends_only_minimum_text(
     encoded = json.dumps(body)
     for private in (tx.id, str(tx.amount), "never-send-this", tx.payment_method, tx.source_file):
         assert private not in encoded
+
+
+def test_opt_in_structured_reply_constrains_account_and_required_fields(local_server, tx):
+    url, state = local_server
+    ai.LocalModelClient(AIConfig(base_url=url, structured_output=True)).suggest(
+        tx, ["Expenses:Services"]
+    )
+    response_format = state["requests"][0]["body"]["response_format"]
+    assert response_format["type"] == "json_object"
+    schema = response_format["schema"]
+    assert schema["properties"]["account"]["enum"] == ["Expenses:Services", None]
+    assert set(schema["required"]) == {"account", "confidence", "reason"}
+    assert schema["additionalProperties"] is False
 
 
 def test_redirect_cannot_send_bill_data_to_another_location(local_server, tx):

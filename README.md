@@ -24,6 +24,7 @@
 - **Smart account classification**: Auto-classification based on Beancount best practices
 - **Configurable account trees**: Extend or replace bundled rules; optional local MiniCPM-V suggestions for unmatched transactions
 - **Ledger interoperability**: Read-only reconciliation, native Beancount import/export, include-ready fragments, and an optional beangulp/Fava importer
+- **Local graphical workbench**: Browser-based imports, 1B suggestions, editable review, reconciliation, and validated export; no hosted service or frontend build required
 - **Platform priority**: Alipay > WeChat > Bank (by information completeness)
 - **Special-case detection**: Internal transfers, cross-midnight early-morning transactions, consecutive same-amount transaction protection
 
@@ -98,6 +99,12 @@ python example_usage.py
 For local models, account-tree configuration, ledger reconciliation and native Beancount workflows, see [Local workbench guide](docs/local-workbench.md).
 
 ```sh
+# Launch the graphical workbench on this computer
+pip install -e '.[workbench,xlsx,pdf]'
+beancount-workbench --model-file /path/to/model.gguf --open
+```
+
+```sh
 # Choose a local GGUF; llama-server starts and stops automatically
 beancount-dedup --model-file /path/to/model.gguf --ledger /path/to/main.beancount
 
@@ -108,7 +115,7 @@ beancount-dedup --fragment -o output/import.beancount
 beancount-dedup --beancount /path/to/main.beancount -o output/imported.beancount
 ```
 
-Model suggestions are marked `!` for review. Account/amount/date matching is deterministic; the model does not decide whether transactions are duplicates or alter the existing ledger. The desktop review interface is a proposed next step; these workflows currently use the CLI or Python API.
+Model suggestions are marked `!` for review. Account/amount/date matching is deterministic; the model does not decide whether transactions are duplicates or alter the existing ledger. The graphical workbench runs at `http://127.0.0.1:8765`, with its data in the local `workbench-data/` directory. CLI and Python workflows remain available.
 
 ## Account Classification
 
@@ -229,6 +236,7 @@ This tool is provided for educational and personal finance management purposes. 
 - **智能账户分类**：基于 Beancount 最佳实践的自动分类
 - **可配置账户树**：追加或整体替换内置规则，未命中的交易可选用本地 MiniCPM-V 给出建议
 - **Beancount 生态接入**：只读核对、原生账簿导入导出、include 交易文件，以及可选 beangulp/Fava 导入器
+- **本地图形工作台**：在浏览器中导入、调用 1B 分类、逐笔或批量确认、核对和导出，无需云端服务
 - **平台优先级**：支付宝 > 微信 > 银行（信息完整度优先）
 - **特殊场景识别**：内部转账、跨天凌晨交易、连续相同金额交易保护
 
@@ -303,6 +311,12 @@ python example_usage.py
 本地模型、账户树替换、账簿核对和 Beancount 导入导出见[本地工作台指南](docs/local-workbench.md)。
 
 ```sh
+# 安装并启动图形工作台
+pip install -e '.[workbench,xlsx,pdf]'
+beancount-workbench --model-file /path/to/model.gguf --open
+```
+
+```sh
 # 选择 GGUF 文件即可自动启动和关闭本地 llama-server，并核对已有账簿
 beancount-dedup --model-file /path/to/model.gguf --ledger /path/to/main.beancount
 
@@ -313,7 +327,7 @@ beancount-dedup --fragment -o output/import.beancount
 beancount-dedup --beancount /path/to/main.beancount -o output/imported.beancount
 ```
 
-模型建议一律标记 `!` 等待复核。账户、金额和日期核对由程序完成，模型不决定去重、不修改已有账簿。目前提供命令行和 Python 接口；桌面复核界面是后续产品方向。
+模型建议一律等待复核。账户、金额和日期核对由程序完成，模型不决定去重、不修改已有账簿。图形工作台默认打开 `http://127.0.0.1:8765`，支持逐笔修改与批量确认；工作区保存在本机 `workbench-data/`。原有命令行和 Python 接口仍可使用。
 
 ## 账户分类
 

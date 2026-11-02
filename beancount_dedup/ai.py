@@ -65,6 +65,8 @@ def validate_ai_config(config: AIConfig) -> str:
         for a in config.allowed_accounts
     ):
         raise ValueError("ai.allowed_accounts must contain valid Expenses/Income account names")
+    if not isinstance(config.structured_output, bool):
+        raise ValueError("ai.structured_output must be true or false")
     return config.base_url.rstrip("/") + "/chat/completions"
 
 
@@ -118,6 +120,20 @@ class LocalModelClient:
                 },
             ],
         }
+        if self.config.structured_output:
+            body["response_format"] = {
+                "type": "json_object",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "account": {"type": ["string", "null"], "enum": [*candidates, None]},
+                        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                        "reason": {"type": "string", "maxLength": 160},
+                    },
+                    "required": ["account", "confidence", "reason"],
+                    "additionalProperties": False,
+                },
+            }
         request = Request(
             self.url,
             data=json.dumps(body, ensure_ascii=False).encode("utf-8"),

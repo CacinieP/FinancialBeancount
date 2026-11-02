@@ -3,6 +3,7 @@
 # 用户数据文件夹（包含真实账单，不要提交）
 input/
 output/
+workbench-data/
 
 # 测试输出文件夹
 test_output/
