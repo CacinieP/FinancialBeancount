@@ -22,6 +22,8 @@
 - **Three-level fingerprint deduplication**: L1 (exact) / L2 (loose) / L3 (fuzzy) matching strategies
 - **Multi-format support**: CSV, XLSX, PDF auto-conversion
 - **Smart account classification**: Auto-classification based on Beancount best practices
+- **Configurable account trees**: Extend or replace bundled rules; optional local MiniCPM-V suggestions for unmatched transactions
+- **Ledger interoperability**: Read-only reconciliation, native Beancount import/export, include-ready fragments, and an optional beangulp/Fava importer
 - **Platform priority**: Alipay > WeChat > Bank (by information completeness)
 - **Special-case detection**: Internal transfers, cross-midnight early-morning transactions, consecutive same-amount transaction protection
 
@@ -93,6 +95,21 @@ exporter.export(unique_txs, output_path="output.beancount")
 python example_usage.py
 ```
 
+For local models, account-tree configuration, ledger reconciliation and native Beancount workflows, see [Local workbench guide](docs/local-workbench.md).
+
+```sh
+# Choose a local GGUF; llama-server starts and stops automatically
+beancount-dedup --model-file /path/to/model.gguf --ledger /path/to/main.beancount
+
+# Export a transaction fragment to include in your existing ledger
+beancount-dedup --fragment -o output/import.beancount
+
+# Import and export a native ledger, preserving Beancount directives/postings
+beancount-dedup --beancount /path/to/main.beancount -o output/imported.beancount
+```
+
+Model suggestions are marked `!` for review. Account/amount/date matching is deterministic; the model does not decide whether transactions are duplicates or alter the existing ledger. The desktop review interface is a proposed next step; these workflows currently use the CLI or Python API.
+
 ## Account Classification
 
 This project uses Beancount best practices for account hierarchy:
@@ -143,7 +160,7 @@ python example_usage.py
 
 ## Privacy & Security
 
-- **All processing is local** — No data is sent to external servers
+- **Local processing** — Optional model requests are restricted to loopback addresses; no remote model endpoint is accepted
 - **input/ and output/ folders are excluded from git** — Your financial data never leaves your machine
 - **Sample test data is anonymized** — No real personal information in the repository
 - **Review-before-import workflow** — Fuzzy matches are reported for manual review instead of being silently discarded
@@ -210,6 +227,8 @@ This tool is provided for educational and personal finance management purposes. 
 - **三级哈希指纹去重**：L1(精确) / L2(宽松) / L3(模糊) 匹配策略
 - **多格式支持**：CSV、XLSX、PDF 自动转换
 - **智能账户分类**：基于 Beancount 最佳实践的自动分类
+- **可配置账户树**：追加或整体替换内置规则，未命中的交易可选用本地 MiniCPM-V 给出建议
+- **Beancount 生态接入**：只读核对、原生账簿导入导出、include 交易文件，以及可选 beangulp/Fava 导入器
 - **平台优先级**：支付宝 > 微信 > 银行（信息完整度优先）
 - **特殊场景识别**：内部转账、跨天凌晨交易、连续相同金额交易保护
 
@@ -281,6 +300,21 @@ exporter.export(unique_txs, output_path="output.beancount")
 python example_usage.py
 ```
 
+本地模型、账户树替换、账簿核对和 Beancount 导入导出见[本地工作台指南](docs/local-workbench.md)。
+
+```sh
+# 选择 GGUF 文件即可自动启动和关闭本地 llama-server，并核对已有账簿
+beancount-dedup --model-file /path/to/model.gguf --ledger /path/to/main.beancount
+
+# 导出可 include 到已有主账簿的交易文件，不重复声明账户
+beancount-dedup --fragment -o output/import.beancount
+
+# 原生账簿导入、导出，保留 Beancount 指令和 posting 结构
+beancount-dedup --beancount /path/to/main.beancount -o output/imported.beancount
+```
+
+模型建议一律标记 `!` 等待复核。账户、金额和日期核对由程序完成，模型不决定去重、不修改已有账簿。目前提供命令行和 Python 接口；桌面复核界面是后续产品方向。
+
 ## 账户分类
 
 本项目使用 Beancount 最佳实践的账户层级：
@@ -350,7 +384,7 @@ python example_usage.py
 
 ## 隐私与安全
 
-- **所有处理均在本地** — 不向外部服务器发送任何数据
+- **本地处理** — 可选模型请求限制在 loopback 地址，不接受远程模型端点
 - **input/ 和 output/ 目录已排除在 git 之外** — 财务数据不会离开你的电脑
 - **样本测试数据已匿名化** — 仓库中不包含真实个人信息
 - **导入前审核工作流** — 模糊匹配会报告待人工审核，而非静默丢弃

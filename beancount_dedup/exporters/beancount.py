@@ -6,10 +6,14 @@ import re
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from ..account_classifier import BeancountAccountClassifier
+from ..account_classifier import BeancountAccountClassifier, is_valid_account
 from ..config import AccountConfig
-from ..models import DedupStatus, Platform, Transaction
+from ..models import DedupStatus, Platform, Transaction, TransactionType
+
+if TYPE_CHECKING:
+    from ..ai import ClassificationSuggestion
 
 
 class BeancountExporter:
@@ -22,9 +26,7 @@ class BeancountExporter:
     # 默认账户映射
     DEFAULT_ACCOUNT_MAP = {
         # 资产账户
-        "alipay": "Assets:Digital:Alipay",
-        "wechat": "Assets:Digital:WeChat",
-        "bank": "Assets:Bank:Unknown",
+        **BeancountAccountClassifier.PLATFORM_WALLET_ACCOUNTS,
         # 支出账户（需要根据商户分类细化）
         "expense_unknown": "Expenses:Unknown",
         "expense_food": "Expenses:Food:Dining",
@@ -78,6 +80,8 @@ class BeancountExporter:
         account_map: dict[str, str] | None = None,
         use_classifier: bool = True,
         accounts: AccountConfig | None = None,
+        suggestions: list["ClassificationSuggestion"] | None = None,
+        currency: str = "CNY",
     ):
         """
         初始化导出器
@@ -88,8 +92,14 @@ class BeancountExporter:
             accounts: 传给智能分类器的用户账户配置
         """
         self.account_map = {**self.DEFAULT_ACCOUNT_MAP}
+        if accounts:
+            self.account_map.update(accounts.platform_wallets)
         if account_map:
             self.account_map.update(account_map)
+        if not re.fullmatch(r"[A-Z][A-Z0-9'._-]*", currency):
+            raise ValueError("Invalid operating currency")
+        self.currency = currency
+        self.suggestions = {s.transaction_id: s for s in suggestions or []}
 
         # 初始化智能分类器
         self.use_classifier = use_classifier
@@ -115,17 +125,21 @@ class BeancountExporter:
             return self.classifier.determine_asset_account(tx.platform.value, tx.counterparty)
 
         # 回退到旧逻辑
-        if tx.platform == Platform.ALIPAY:
-            return self.account_map["alipay"]
-        elif tx.platform == Platform.WECHAT:
-            return self.account_map["wechat"]
-        elif tx.platform == Platform.BANK:
+        if tx.platform == Platform.BANK:
             if tx.payment_method:
                 bank_name = self._extract_bank_name(tx.payment_method)
                 if bank_name:
-                    return f"Assets:Bank:{bank_name}"
+                    return f"Assets:Current:Bank:{bank_name}"
             return self.account_map["bank"]
-        return "Assets:Unknown"
+        return self.account_map.get(tx.platform.value, "Assets:Unknown")
+
+    def _suggested_account(self, tx: Transaction, root: str) -> str | None:
+        suggestion = self.suggestions.get(tx.id)
+        if suggestion and suggestion.status == "suggested":
+            account = suggestion.suggested_account
+            if is_valid_account(account) and account.startswith(root + ":"):
+                return account
+        return None
 
     def _extract_bank_name(self, payment_method: str) -> str | None:
         """
@@ -158,6 +172,11 @@ class BeancountExporter:
         """
         根据交易对手方和描述确定支出分类（使用智能分类器）
         """
+        if tx.tx_type == TransactionType.TRANSFER or tx.status == DedupStatus.INTERNAL_TRANSFER:
+            return "Equity:Transfers:Unassigned"
+        suggested = self._suggested_account(tx, "Expenses")
+        if suggested:
+            return suggested
         if self.use_classifier:
             # 使用智能分类器进行分类
             classification = self.classifier.classify_transaction(
@@ -179,6 +198,11 @@ class BeancountExporter:
         """
         确定收入分类（使用智能分类器）
         """
+        if tx.tx_type == TransactionType.TRANSFER or tx.status == DedupStatus.INTERNAL_TRANSFER:
+            return "Equity:Transfers:Unassigned"
+        suggested = self._suggested_account(tx, "Income")
+        if suggested:
+            return suggested
         if self.use_classifier:
             classification = self.classifier.classify_transaction(
                 tx.counterparty, tx.description, tx_type="income", platform=tx.platform.value
@@ -194,10 +218,10 @@ class BeancountExporter:
         if any(kw in text for kw in ["工资", "薪资", "salary", "奖金", "bonus"]):
             return self.account_map["income_salary"]
 
+        key = "income_other"
         if any(kw in text for kw in ["理财", "基金", "股息", "分红", "利息"]):
-            return self.account_map["income_investment"]
-
-        return self.account_map["income_other"]
+            key = "income_investment"
+        return self.account_map[key]
 
     def _format_amount(self, amount: Decimal, currency: str = "CNY") -> str:
         """
@@ -223,6 +247,11 @@ class BeancountExporter:
         # 日期和标志
         date_str = tx.date_str
         flag = "*" if tx.status == DedupStatus.UNIQUE else "!"
+        if tx.tx_type == TransactionType.TRANSFER:
+            flag = "!"
+        suggestion = self.suggestions.get(tx.id)
+        if suggestion and suggestion.status not in {"rule_matched", "skipped_special_type"}:
+            flag = "!"
 
         # Payee 和 Narration
         payee = self._sanitize_narration(tx.counterparty)
@@ -242,6 +271,8 @@ class BeancountExporter:
                 lines.append(f'  duplicate_of: "{tx.duplicate_of}"')
             if tx.match_level:
                 lines.append(f'  match_level: "{tx.match_level}"')
+            if suggestion and suggestion.status == "suggested":
+                lines.append('  classification: "local_model_review_required"')
 
         # 账户行
         asset_account = self._determine_asset_account(tx)
@@ -250,16 +281,16 @@ class BeancountExporter:
         if tx.is_expense:
             # 支出：资产减少，费用增加
             expense_account = self._determine_expense_category(tx)
-            lines.append(f"  {asset_account:<30} {-amount_abs:>10.2f} CNY")
-            lines.append(f"  {expense_account:<30} {amount_abs:>10.2f} CNY")
+            lines.append(f"  {asset_account:<30} {-amount_abs:>10.2f} {self.currency}")
+            lines.append(f"  {expense_account:<30} {amount_abs:>10.2f} {self.currency}")
         elif tx.is_income:
             # 收入：资产增加，收入增加（Beancount中收入为负）
             income_account = self._determine_income_category(tx)
-            lines.append(f"  {asset_account:<30} {amount_abs:>10.2f} CNY")
-            lines.append(f"  {income_account:<30} {-amount_abs:>10.2f} CNY")
+            lines.append(f"  {asset_account:<30} {amount_abs:>10.2f} {self.currency}")
+            lines.append(f"  {income_account:<30} {-amount_abs:>10.2f} {self.currency}")
         else:
             # 零金额（不应该发生）
-            lines.append(f"  {asset_account:<30} 0.00 CNY")
+            lines.append(f"  {asset_account:<30} 0.00 {self.currency}")
 
         return "\n".join(lines)
 
@@ -269,6 +300,7 @@ class BeancountExporter:
         output_path: str | None = None,
         include_meta: bool = True,
         option_entries: list[str] | None = None,
+        include_open_entries: bool = True,
     ) -> str:
         """
         批量导出交易为Beancount格式
@@ -295,7 +327,7 @@ class BeancountExporter:
                 lines.append(entry)
             lines.append("")
 
-        # 账户声明
+        # 账户声明；fragments included in an existing ledger omit these.
         accounts: set[str] = set()
         for tx in transactions:
             accounts.add(self._determine_asset_account(tx))
@@ -304,10 +336,14 @@ class BeancountExporter:
             elif tx.is_income:
                 accounts.add(self._determine_income_category(tx))
 
-        lines.append("; 账户声明")
-        for account in sorted(accounts):
-            lines.append(f"{datetime.now().year}-01-01 open {account} CNY")
-        lines.append("")
+        if include_open_entries:
+            lines.append("; 账户声明")
+            open_date = min(
+                (tx.date_str for tx in transactions), default=f"{datetime.now().year}-01-01"
+            )
+            for account in sorted(accounts):
+                lines.append(f"{open_date} open {account} {self.currency}")
+            lines.append("")
 
         # 按日期分组并导出交易
         current_date = None

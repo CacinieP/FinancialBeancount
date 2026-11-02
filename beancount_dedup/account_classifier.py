@@ -7,12 +7,49 @@ Beancount 账户分类系统
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from enum import Enum
+from importlib.resources import files
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .config import AccountConfig
+
+
+_DEFAULT_RULES = json.loads(
+    files("beancount_dedup").joinpath("default_account_rules.json").read_text(encoding="utf-8")
+)
+
+
+def is_valid_account(account: object) -> bool:
+    """Validate account names without requiring the optional Beancount package.
+
+    Each component starts with an uppercase ASCII letter or a Unicode letter;
+    remaining characters are letters, numbers or hyphens. Whitespace, quotes
+    and newlines cannot become Beancount directives through configuration.
+    """
+    if not isinstance(account, str):
+        return False
+    parts = account.split(":")
+    if len(parts) < 2 or parts[0] not in {"Assets", "Liabilities", "Equity", "Income", "Expenses"}:
+        return False
+    for part in parts[1:]:
+        if not part or not part[0].isalpha():
+            return False
+        if part[0].isascii() and not part[0].isupper():
+            return False
+        if not all(char.isalnum() or char == "-" for char in part):
+            return False
+    return True
+
+
+def _validate_rules(rules: dict[str, str], roots: tuple[str, ...]) -> None:
+    for keyword, account in rules.items():
+        if not isinstance(keyword, str) or not keyword.strip():
+            raise ValueError("Classification rule keywords must be non-empty strings")
+        if not is_valid_account(account) or account.split(":", 1)[0] not in roots:
+            raise ValueError(f"Invalid classification account for keyword {keyword!r}")
 
 
 class AccountType(Enum):
@@ -95,149 +132,15 @@ class BeancountAccountClassifier:
         "unionpay": "Assets:Current:Digital:UnionPay",
     }
 
-    # 支出关键词映射（更细致的分类）
+    # Compatibility views of the packaged default rules. Instances copy these
+    # mappings so user overrides never mutate the defaults.
     EXPENSE_CATEGORIES = {
-        # 餐饮 - 二级和三级分类
-        ExpenseCategory.FOOD: {
-            "restaurant": "Expenses:Food:Restaurant",
-            "grocery": "Expenses:Food:Grocery",
-            "supermarket": "Expenses:Food:Grocery",
-            "coffee": "Expenses:Food:Restaurant",
-            "tea": "Expenses:Food:Restaurant",
-            "bakery": "Expenses:Food:Grocery",
-            "convenience": "Expenses:Food:Grocery",
-            "fruit": "Expenses:Food:Grocery",
-            "starbucks": "Expenses:Food:Restaurant",
-            "mcdonalds": "Expenses:Food:Restaurant",
-            "kfc": "Expenses:Food:Restaurant",
-            "subway": "Expenses:Food:Restaurant",
-            "肯德基": "Expenses:Food:Restaurant",
-            "麦当劳": "Expenses:Food:Restaurant",
-            "星巴克": "Expenses:Food:Restaurant",
-        },
-        # 住房
-        ExpenseCategory.HOUSING: {
-            "rent": "Expenses:Housing:Rent",
-            "utilities": "Expenses:Housing:Utilities",
-            "water": "Expenses:Housing:Utilities",
-            "electric": "Expenses:Housing:Utilities",
-            "gas": "Expenses:Housing:Utilities",
-            "internet": "Expenses:Housing:Utilities",
-            "property": "Expenses:Housing:Maintenance",
-            "物业": "Expenses:Housing:Maintenance",
-            "宽带": "Expenses:Housing:Utilities",
-        },
-        # 交通
-        ExpenseCategory.TRANSPORT: {
-            "地铁": "Expenses:Transport:Public",
-            "subway": "Expenses:Transport:Public",
-            "公交": "Expenses:Transport:Public",
-            "bus": "Expenses:Transport:Public",
-            "taxi": "Expenses:Transport:Private",
-            "滴滴": "Expenses:Transport:Private",
-            "出租车": "Expenses:Transport:Private",
-            "parking": "Expenses:Transport:Private",
-            "gas": "Expenses:Transport:Private",
-            "fuel": "Expenses:Transport:Private",
-            "加油": "Expenses:Transport:Private",
-            "高速": "Expenses:Transport:Private",
-            "铁路": "Expenses:Transport:Public",
-        },
-        # 购物
-        ExpenseCategory.SHOPPING: {
-            "jd": "Expenses:Shopping:Online",
-            "京东": "Expenses:Shopping:Online",
-            "taobao": "Expenses:Shopping:Online",
-            "淘宝": "Expenses:Shopping:Online",
-            "tmall": "Expenses:Shopping:Online",
-            "天猫": "Expenses:Shopping:Online",
-            "pinduoduo": "Expenses:Shopping:Online",
-            "拼多多": "Expenses:Shopping:Online",
-            "supermarket": "Expenses:Shopping:Daily",
-            "超市": "Expenses:Shopping:Daily",
-            "便利店": "Expenses:Shopping:Daily",
-            "7-eleven": "Expenses:Shopping:Daily",
-            "familymart": "Expenses:Shopping:Daily",
-            "walmart": "Expenses:Shopping:Daily",
-            "快团团": "Expenses:Shopping:Daily",
-            "美团": "Expenses:Food:Restaurant",  # 美团通常是餐饮
-        },
-        # 娱乐
-        ExpenseCategory.ENTERTAINMENT: {
-            "movie": "Expenses:Entertainment:Movies",
-            "电影": "Expenses:Entertainment:Movies",
-            "cinema": "Expenses:Entertainment:Movies",
-            "theater": "Expenses:Entertainment:Live",
-            "game": "Expenses:Entertainment:Digital",
-            "游戏": "Expenses:Entertainment:Digital",
-            "qq": "Expenses:Entertainment:Digital",
-            "tencent": "Expenses:Entertainment:Digital",
-            "netflix": "Expenses:Entertainment:Subscription",
-            "iqiyi": "Expenses:Entertainment:Subscription",
-            "youku": "Expenses:Entertainment:Subscription",
-            "腾讯视频": "Expenses:Entertainment:Subscription",
-        },
-        # 医疗
-        ExpenseCategory.MEDICAL: {
-            "hospital": "Expenses:Medical:Hospitals",
-            "pharmacy": "Expenses:Medical:Pharmacy",
-            "药店": "Expenses:Medical:Pharmacy",
-            "clinic": "Expenses:Medical:Clinic",
-            "保险": "Expenses:Medical:Insurance",
-            "体检": "Expenses:Medical:Checkup",
-        },
-        # 教育
-        ExpenseCategory.EDUCATION: {
-            "course": "Expenses:Education:Tuition",
-            "培训": "Expenses:Education:Tuition",
-            "书籍": "Expenses:Education:Books",
-            "电子书": "Expenses:Education:Books",
-            "kindle": "Expenses:Education:Books",
-            "学校": "Expenses:Education:Tuition",
-            "辅导班": "Expenses:Education:Tutoring",
-            "datawhale": "Expenses:Education:Online",
-        },
-        # 通信
-        ExpenseCategory.COMMUNICATION: {
-            "mobile": "Expenses:Communication:Phone",
-            "phone": "Expenses:Communication:Phone",
-            "话费": "Expenses:Communication:Phone",
-            "流量": "Expenses:Communication:Data",
-            "充值": "Expenses:Communication:Phone",
-        },
-        # 金融
-        ExpenseCategory.FINANCIAL: {
-            "fee": "Expenses:Financial:Fee",
-            "手续费": "Expenses:Financial:Fee",
-            "interest": "Expenses:Financial:Interest",
-            "保险": "Expenses:Financial:Insurance",
-            "理财": "Expenses:Financial:Investment",
-        },
+        ExpenseCategory(key): dict(value)
+        for key, value in _DEFAULT_RULES["expense_categories"].items()
     }
-
-    # 收入关键词映射
     INCOME_CATEGORIES = {
-        IncomeCategory.SALARY: {
-            "工资": "Income:Salary:Gross",
-            "薪资": "Income:Salary:Gross",
-            "salary": "Income:Salary:Gross",
-            "奖金": "Income:Salary:Bonus",
-            "年终奖": "Income:Salary:Bonus",
-            "绩效": "Income:Salary:Bonus",
-        },
-        IncomeCategory.INVESTMENT: {
-            "分红": "Income:Investment:Dividend",
-            "dividend": "Income:Investment:Dividend",
-            "利息": "Income:Investment:Interest",
-            "理财": "Income:Investment:Interest",
-            "基金": "Income:Investment:Fund",
-            "股票": "Income:Investment:CapitalGains",
-        },
-        IncomeCategory.REFUND: {
-            "退款": "Income:Refund:Shopping",
-            "退回": "Income:Refund:Shopping",
-            "refund": "Income:Refund:Shopping",
-        },
+        IncomeCategory(key): dict(value)
+        for key, value in _DEFAULT_RULES["income_categories"].items()
     }
 
     # 银行名称映射
@@ -260,54 +163,7 @@ class BeancountAccountClassifier:
         "浙商": "ZSB",
     }
 
-    # 特殊商户映射（手动定义）
-    MERCHANT_ACCOUNT_OVERRIDES = {
-        # 餐饮连锁
-        "星巴克": "Expenses:Food:Restaurant",
-        "Starbucks": "Expenses:Food:Restaurant",
-        "麦当劳": "Expenses:Food:Restaurant",
-        "McDonald's": "Expenses:Food:Restaurant",
-        "肯德基": "Expenses:Food:Restaurant",
-        "KFC": "Expenses:Food:Restaurant",
-        "必胜客": "Expenses:Food:Restaurant",
-        " Pizza Hut": "Expenses:Food:Restaurant",
-        "汉堡王": "Expenses:Food:Restaurant",
-        "华莱士": "Expenses:Food:Restaurant",
-        # 咖啡
-        "瑞幸": "Expenses:Food:Coffee",
-        "luckin": "Expenses:Food:Coffee",
-        "Costa": "Expenses:Food:Coffee",
-        "漫咖啡": "Expenses:Food:Coffee",
-        # 便利店
-        "7-Eleven": "Expenses:Shopping:Daily",
-        "FamilyMart": "Expenses:Shopping:Daily",
-        "全家": "Expenses:Shopping:Daily",
-        "罗森": "Expenses:Shopping:Daily",
-        "LAWSON": "Expenses:Shopping:Daily",
-        "喜士多": "Expenses:Shopping:Daily",
-        # 电商
-        "京东": "Expenses:Shopping:Online",
-        "JD": "Expenses:Shopping:Online",
-        "淘宝": "Expenses:Shopping:Online",
-        "天猫": "Expenses:Shopping:Online",
-        "拼多多": "Expenses:Shopping:Online",
-        "唯品会": "Expenses:Shopping:Online",
-        # 数字服务
-        "美团": "Expenses:Food:Delivery",  # 美团外卖
-        "饿了么": "Expenses:Food:Delivery",
-        "滴滴": "Expenses:Transport:Private",
-        "快滴": "Expenses:Transport:Private",
-        "高德": "Expenses:Transport:Private",
-        # 数字娱乐
-        "腾讯视频": "Expenses:Entertainment:Subscription",
-        "爱奇艺": "Expenses:Entertainment:Subscription",
-        "Netflix": "Expenses:Entertainment:Subscription",
-        "Spotify": "Expenses:Entertainment:Subscription",
-        # 教育
-        "得到": "Expenses:Education:Books",
-        "知乎": "Expenses:Education:Online",
-        "Bilibili": "Expenses:Entertainment:Subscription",
-    }
+    MERCHANT_ACCOUNT_OVERRIDES = dict(_DEFAULT_RULES["merchant_overrides"])
 
     def __init__(self, accounts: AccountConfig | None = None):
         """
@@ -321,10 +177,95 @@ class BeancountAccountClassifier:
         self.platform_wallets = dict(self.PLATFORM_WALLET_ACCOUNTS)
         self.bank_codes = dict(self.BANK_CODE_MAPPING)
         self.user_overrides: dict[str, str] = {}
+        self.expense_rules: dict[str, str] = {}
+        self.income_rules: dict[str, str] = {}
+        self.rules_mode = "append"
         if accounts is not None:
+            self.rules_mode = accounts.rules_mode
+            if self.rules_mode not in {"append", "replace"}:
+                raise ValueError("accounts.rules_mode must be 'append' or 'replace'")
             self.platform_wallets.update(accounts.platform_wallets)
             self.bank_codes.update(accounts.bank_codes)
             self.user_overrides = dict(accounts.merchant_overrides)
+            self.expense_rules = dict(accounts.expense_rules)
+            self.income_rules = dict(accounts.income_rules)
+
+        _validate_rules(self.user_overrides, ("Expenses", "Income"))
+        _validate_rules(self.expense_rules, ("Expenses",))
+        _validate_rules(self.income_rules, ("Income",))
+        for account in self.platform_wallets.values():
+            if not is_valid_account(account) or account.split(":", 1)[0] not in {
+                "Assets",
+                "Liabilities",
+            }:
+                raise ValueError(
+                    "Platform wallet accounts must be valid asset or liability accounts"
+                )
+        for code in self.bank_codes.values():
+            if (
+                not isinstance(code, str)
+                or ":" in code
+                or not is_valid_account(f"Assets:Bank:{code}")
+            ):
+                raise ValueError("Bank codes must be a valid single account component")
+
+        use_defaults = self.rules_mode == "append"
+        self.merchant_rules = dict(self.MERCHANT_ACCOUNT_OVERRIDES) if use_defaults else {}
+        self.expense_categories = (
+            {key: dict(value) for key, value in self.EXPENSE_CATEGORIES.items()}
+            if use_defaults
+            else {}
+        )
+        self.income_categories = (
+            {key: dict(value) for key, value in self.INCOME_CATEGORIES.items()}
+            if use_defaults
+            else {}
+        )
+
+    @staticmethod
+    def is_fallback(account: str) -> bool:
+        """Whether classification did not find a configured or built-in rule."""
+        return account in {"Expenses:Unknown", "Income:Other", "Income:Unknown"}
+
+    def candidate_accounts(self, tx_type: str) -> list[str]:
+        """Return accounts in the active account tree for model suggestions."""
+        if tx_type not in {"expense", "income"}:
+            raise ValueError("tx_type must be 'expense' or 'income'")
+        root = "Expenses" if tx_type == "expense" else "Income"
+        accounts = {"Expenses:Unknown" if tx_type == "expense" else "Income:Other"}
+        accounts.update(
+            account for account in self.user_overrides.values() if account.startswith(f"{root}:")
+        )
+        rules = self.expense_rules if tx_type == "expense" else self.income_rules
+        accounts.update(rules.values())
+        categories = self.expense_categories if tx_type == "expense" else self.income_categories
+        accounts.update(account for values in categories.values() for account in values.values())
+        if tx_type == "expense":
+            accounts.update(self.merchant_rules.values())
+        return sorted(accounts)
+
+    def has_rule_match(self, counterparty: str, description: str, tx_type: str) -> bool:
+        """Distinguish an explicit fallback-account rule from no matching rule."""
+        if tx_type not in {"expense", "income"}:
+            raise ValueError("tx_type must be 'expense' or 'income'")
+        text = f"{counterparty} {description}".lower()
+        root = "Expenses" if tx_type == "expense" else "Income"
+        if self._match_user_override(text, root):
+            return True
+        rules = self.expense_rules if tx_type == "expense" else self.income_rules
+        if self._match_rules(text, rules):
+            return True
+        if tx_type == "expense" and self._match_rules(text, self.merchant_rules):
+            return True
+        categories = self.expense_categories if tx_type == "expense" else self.income_categories
+        return any(self._match_rules(text, values) for values in categories.values())
+
+    @staticmethod
+    def _match_rules(text: str, rules: dict[str, str]) -> str | None:
+        for keyword, account in rules.items():
+            if keyword.lower() in text:
+                return account
+        return None
 
     def _match_user_override(self, text: str, root: str) -> str | None:
         for keyword, account in self.user_overrides.items():
@@ -393,13 +334,17 @@ class BeancountAccountClassifier:
         if user_account:
             return user_account
 
+        custom_account = self._match_rules(text, self.expense_rules)
+        if custom_account:
+            return custom_account
+
         # 1. 检查特殊商户映射
-        for merchant, account in self.MERCHANT_ACCOUNT_OVERRIDES.items():
+        for merchant, account in self.merchant_rules.items():
             if merchant.lower() in text:
                 return account
 
         # 2. 检查按类别的关键词
-        for keywords in self.EXPENSE_CATEGORIES.values():
+        for keywords in self.expense_categories.values():
             for keyword, account in keywords.items():
                 if keyword in text:
                     return account
@@ -412,18 +357,14 @@ class BeancountAccountClassifier:
         if user_account:
             return user_account
 
-        # 1. 检查退款
-        if any(kw in text for kw in ["退款", "退回", "refund"]):
-            return self.INCOME_CATEGORIES[IncomeCategory.REFUND]["退款"]
+        custom_account = self._match_rules(text, self.income_rules)
+        if custom_account:
+            return custom_account
 
-        # 2. 检查工资
-        for keyword, account in self.INCOME_CATEGORIES[IncomeCategory.SALARY].items():
-            if keyword in text:
-                return account
-
-        # 3. 检查投资
-        for keyword, account in self.INCOME_CATEGORIES[IncomeCategory.INVESTMENT].items():
-            if keyword in text:
+        # The packaged order preserves refund, salary and investment priority.
+        for keywords in self.income_categories.values():
+            account = self._match_rules(text, keywords)
+            if account:
                 return account
 
         return "Income:Other"
